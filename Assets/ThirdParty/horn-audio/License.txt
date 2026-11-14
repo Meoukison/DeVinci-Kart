@@ -1,0 +1,8 @@
+Klaxon #1 (sound 3504) — Le tiroir du fond / LaSonotheque
+Source: https://lasonotheque.org/klaxon-1-s3504.html
+Download: https://lasonotheque.org/UPLOAD/ogg/3504.ogg?v=d
+License: CC0 1.0 Universal, as stated on the source page.
+https://creativecommons.org/publicdomain/zero/1.0/
+Downloaded 2026-11-10. Original mono Ogg retained. horn-loop.wav derives the stable 60–130ms segment
+with a 10ms wrapped crossfade. Runtime gain 0.32, pitch 1.08, spatial attenuation
+and short attack/release envelope. Rebuild: Tools/prepare_horn_loop.py.

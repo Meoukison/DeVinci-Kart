@@ -1,0 +1,6 @@
+Racing Kart — Keith at Fertile Soil Productions
+Source: https://opengameart.org/content/racing-kart
+Download: https://opengameart.org/sites/default/files/racing_kart.zip
+License on source page: CC0 1.0 Universal
+https://creativecommons.org/publicdomain/zero/1.0/
+Downloaded 2026-11-03. Original OBJ/MTL retained. complete-kart.obj rotates/scales and names the parts; original steering rim replaced in Unity, body geometry retained. Materials recolored.

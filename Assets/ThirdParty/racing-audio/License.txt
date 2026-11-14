@@ -1,0 +1,11 @@
+Engine loops: domasx2, CC0 1.0
+https://opengameart.org/content/racing-car-engine-sound-loops
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Car tire squeal skid loop: audible-edge (Tom Haigh), submitted by qubodup. CC BY 3.0.
+https://opengameart.org/content/car-tire-squeal-skid-loop
+https://creativecommons.org/licenses/by/3.0/
+Audio used as supplied; runtime volume/pitch changes and layering.
+
+Crash Collision: qubodup, CC0
+https://opengameart.org/content/crash-collision

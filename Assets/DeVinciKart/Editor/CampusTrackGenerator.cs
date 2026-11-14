@@ -9,6 +9,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
+using KartLab;
 
 namespace DeVinciKart.EditorTools
 {
@@ -20,7 +21,7 @@ namespace DeVinciKart.EditorTools
     ///   → Terrasses de Nanterre → arrivée au Campus du Parc, au bord du parc André-Malraux.
     /// Menu : DeVinci Kart > Générer la piste Campus → Campus
     /// </summary>
-    public static class CampusTrackGenerator
+    public static partial class CampusTrackGenerator
     {
         // ============================== RÉGLAGES ==============================
         const string ModelsFolder = "Assets/3DModels";
@@ -34,12 +35,15 @@ namespace DeVinciKart.EditorTools
         static Vector3 A(float s, float y = 0f) { var p = AxisEast * s; p.y = y; return p; }
 
         // Positions réelles (m, depuis la Grande Arche)
-        static readonly Vector3 PoleDoor = new Vector3(-150f, 0f, 370f);     // porte sous la marquise du Pôle Léonard de Vinci
-        static readonly Vector3 PoucePos = new Vector3(190f, 0f, 100f);      // Le Pouce, place Carpeaux
-        static readonly Vector3 StatueCenter = new Vector3(262f, 0f, 32f);   // statue (rond-point)
-        static readonly Vector3 NewCampusPos = new Vector3(-1420f, -2.5f, 480f); // Campus du Parc, 41 allée Le Corbusier
-        static readonly Vector3 ParkCenter = new Vector3(-1655f, 0f, 105f);  // parc André-Malraux
-        const float ParkRadius = 260f;
+        // (circuit raccourci : les distances réelles sont compressées, l'ordre et l'orientation des lieux sont conservés)
+        static readonly Vector3 PoleDoor = new Vector3(-60f, 0f, 230f);      // porte sous la marquise du Pôle Léonard de Vinci
+        static readonly Vector3 PoucePos = new Vector3(130f, 0f, 90f);       // Le Pouce, place Carpeaux
+        const float PouceHeight = 30f;                                        // Pouce géant
+        static readonly Vector3 StatueCenter = new Vector3(195f, 0f, 15f);   // statue (rond-point)
+        const float StatueR = 32f;
+        static readonly Vector3 NewCampusPos = new Vector3(-644f, -2.5f, 356f); // Campus du Parc
+        static readonly Vector3 ParkCenter = new Vector3(-700f, 0f, 150f);   // parc André-Malraux
+        const float ParkRadius = 140f;
 
         // Ancien campus (modèle Tripo ×100). Repère local du modèle tel qu'importé par glTFast.
         const float OldCampusScale = 100f, OldCampusDrop = -8.6f;            // socle de 8,6 m enterré
@@ -50,9 +54,10 @@ namespace DeVinciKart.EditorTools
         const float ArchScale = 110f, ArchFloor = 15.3f;
 
         // Pont : boulevard circulaire en tranchée, traversé par l'axe
-        const float BridgeS = -270f, TrenchHalfW = 38f, TrenchHalfLen = 150f, TrenchDepth = 9f;
+        const float BridgeS = -215f, TrenchHalfW = 38f, TrenchHalfLen = 90f, TrenchDepth = 9f;
 
         const float NewCampusScale = 150f;
+        const float JumpScale = 13f, PillarsScale = 16f, ShopHeight = 17f;
         // =====================================================================
 
         enum Zone { Hall, Bridge, Normal }
@@ -104,49 +109,57 @@ namespace DeVinciKart.EditorTools
             bridgeW2L = bridgeL2W.inverse;
         }
 
+        static Vector3 N(float s, float n, float y = 0f) => A(s, y) + new Vector3(-AxisEast.z, 0, AxisEast.x) * n; // n > 0 : côté nord de l'axe
+
         static Vector3[] ControlPoints()
         {
             Vector3 e = (PoucePos - PoleDoor); e.y = 0; e.Normalize();
-            Vector3 left = new Vector3(-AxisEast.z, 0, AxisEast.x); // perpendiculaire à l'axe (côté nord)
-            return new[]
+            Vector3 S = StatueCenter; float r = StatueR;
+            // épingle entre la statue et l'axe : arc tangent à l'axe (rayon 26 m)
+            Vector3 nrm = new Vector3(-AxisEast.z, 0, AxisEast.x);
+            const float Rh = 26f;
+            float cx = S.x + r - Rh, cz = (Rh - cx * nrm.x) / nrm.z;
+            Vector3 tang = new Vector3(cx, 0, cz) - nrm * Rh;
+            float aEnd = Mathf.Atan2(tang.z - cz, tang.x - cx) * Mathf.Rad2Deg;
+            var pts = new List<Vector3>
             {
                 Hall(DoorLx, HallZ0 + 4f),       // fond du hall : départ
                 Hall(DoorLx, 4f),
-                Hall(DoorLx, DoorLz),            // porte
-                Hall(DoorLx, 30f),               // sous la marquise
-                Hall(DoorLx, 52f),
-                PoleDoor + e * 95f,
-                new Vector3(-38, 0, 268),
-                new Vector3(60, 0, 190),
-                new Vector3(130, 0, 128),
-                new Vector3(174, 0, 80),         // Le Pouce à gauche
-                new Vector3(215, 0, 70),
-                StatueCenter + new Vector3(0, 0, 32),          // rond-point de la statue (r = 32 m)
-                StatueCenter + new Vector3(22.6f, 0, 22.6f),
-                StatueCenter + new Vector3(32, 0, 0),
-                StatueCenter + new Vector3(22.6f, 0, -22.6f),
-                StatueCenter + new Vector3(0, 0, -32),
-                new Vector3(240, 0, -40),
-                A(205), A(160),
-                A(55, ArchFloor),                // haut des marches
-                A(0, ArchFloor),                 // SOUS la Grande Arche
-                A(-62, ArchFloor),
-                A(-170),
-                A(-215), A(BridgeS), A(-325),    // pont au-dessus du boulevard circulaire
-                A(-420),
-                A(-550) + left * 25f,            // Terrasses de Nanterre
-                A(-700) - left * 25f,
-                A(-850) + left * 20f,
-                A(-1000),
-                new Vector3(-1050, 0, 470),
-                new Vector3(-1200, 0, 478),
-                new Vector3(-1290, 0, 470),
-                new Vector3(-1335, 0, 468),      // parvis du Campus du Parc
+                Hall(DoorLx, DoorLz),            // porte sous la marquise
+                Hall(DoorLx, 30f),
+                PoleDoor + e * 45f,
+                new Vector3(20, 0, 182),
+                new Vector3(62, 0, 138),
+                new Vector3(104, 0, 78),         // Le Pouce géant à gauche
+                new Vector3(145, 0, 55),
+                S + new Vector3(0, 0, r),        // rond-point de la statue
+                S + new Vector3(r * 0.707f, 0, r * 0.707f),
+                S + new Vector3(r, 0, 0),
+                new Vector3(S.x + r + 1f, 0, -30f),
             };
+            for (int k = 0; k < 5; k++)
+            {
+                float ang = Mathf.Lerp(-10f, aEnd, k / 4f) * Mathf.Deg2Rad;
+                pts.Add(new Vector3(cx + Rh * Mathf.Cos(ang), 0, cz + Rh * Mathf.Sin(ang)));
+            }
+            pts.AddRange(new[]
+            {
+                A(185), A(165),
+                A(55, ArchFloor),                // haut des marches
+                A(0, ArchFloor),                 // SOUS la Grande Arche (tremplin)
+                A(-62, ArchFloor),
+                A(-160),
+                A(-215), A(-270),                // pont au-dessus du boulevard circulaire
+                N(-335, 20), N(-380, 70), N(-360, 125), N(-300, 150),   // Terrasses de Nanterre : enchaînement de virages
+                N(-290, 200), N(-360, 232), N(-460, 210), N(-515, 150),
+                N(-505, 90), N(-540, 45), N(-600, 40), N(-650, 40),     // ligne d'arrivée, Campus du Parc
+            });
+            return pts.ToArray();
         }
 
-        static Vector3[] ItemBoxSpots() => new[] { PoleDoor + (PoucePos - PoleDoor).normalized * 110f, new Vector3(215, 0, 70), A(-420), A(-930) };
-        static Vector3[] BoostSpots() => new[] { A(130), A(-480), new Vector3(-1150, 0, 476) };
+        static Vector3[] ItemBoxSpots() => new[] { PoleDoor + (PoucePos - PoleDoor).normalized * 75f, new Vector3(150, 0, 53), A(-170), N(-370, 100), N(-470, 205) };
+        static Vector3[] BoostSpots() => new[] { A(150, 1f), A(48, ArchFloor), N(-290, 8), N(-512, 125) };
+        static Vector3 PillarsSpot => N(-572, 43);
 
         [MenuItem("DeVinci Kart/Générer la piste Campus → Campus")]
         public static void Generate()
@@ -164,6 +177,9 @@ namespace DeVinciKart.EditorTools
 
                 EditorUtility.DisplayProgressBar("DeVinci Kart", "Textures et matériaux…", 0.1f);
                 CreateMaterials();
+                CreateExtraMaterials();
+                EnsureKartLabSetup();
+                ResetProps(null);
 
                 var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
                 var root = new GameObject("Piste_Campus").transform;
@@ -196,16 +212,28 @@ namespace DeVinciKart.EditorTools
                 BuildBoostPads(path, root);
                 int finishIdx = path.Count - 1 - 15;
                 BuildFinish(path, finishIdx, root);
-                BuildChevrons(path, root);
+                BuildJumpsAndPillars(path, root);
+                BuildKicker(path, root);
+                BuildShops(path, finishIdx, root);
+                BuildBillboards(path, root);
+
+                EditorUtility.DisplayProgressBar("DeVinci Kart", "Panneaux, arches, tribunes, public, circulation…", 0.8f);
+                ResetProps(path);
+                BuildTrackProps(path, finishIdx, root);
+                BuildLife(path, finishIdx, root);
 
                 EditorUtility.DisplayProgressBar("DeVinci Kart", "Arbres, lampadaires, tours…", 0.85f);
                 BuildDecor(path, root);
 
                 SetupCameraAndLighting();
 
+                EditorUtility.DisplayProgressBar("DeVinci Kart", "Kart KartLab, ligne centrale, checkpoints…", 0.93f);
+                var route = BuildTrackRoute(path, root);
+                BuildKartLabCheckpoints(path, root);
+                PlaceKartLabKart(route);
+
                 EditorSceneManager.SaveScene(scene, ScenePath);
                 AddSceneToBuild(ScenePath);
-                Selection.activeGameObject = trackGO;
 
                 string msg = $"Piste générée : {path.length:0} m.\nScène : {ScenePath}";
                 if (Warnings.Count > 0) msg += "\n\nAttention :\n- " + string.Join("\n- ", Warnings);
@@ -221,7 +249,7 @@ namespace DeVinciKart.EditorTools
         // ------------------------------------------------------------------ utilitaires
         static void EnsureFolders()
         {
-            foreach (var f in new[] { "Assets/DeVinciKart", GenFolder, GenFolder + "/Textures", GenFolder + "/Materials", GenFolder + "/Meshes" })
+            foreach (var f in new[] { "Assets/DeVinciKart", GenFolder, GenFolder + "/Textures", GenFolder + "/Materials", GenFolder + "/Meshes", GenFolder + "/MeshesCity" })
             {
                 if (AssetDatabase.IsValidFolder(f)) continue;
                 string parent = Path.GetDirectoryName(f).Replace('\\', '/');
@@ -303,9 +331,12 @@ namespace DeVinciKart.EditorTools
             }
         }
 
+        // Dossier des maillages générés : chaque piste a le sien pour ne pas écraser l'autre.
+        static string MeshDir = GenFolder + "/Meshes";
+
         static Mesh SaveMesh(Mesh m, string name)
         {
-            string p = $"{GenFolder}/Meshes/{name}.asset";
+            string p = $"{MeshDir}/{name}.asset";
             if (AssetDatabase.LoadAssetAtPath<Mesh>(p) != null) AssetDatabase.DeleteAsset(p);
             AssetDatabase.CreateAsset(m, p);
             return m;
@@ -551,6 +582,7 @@ namespace DeVinciKart.EditorTools
             ground.Box(new Vector3(-big, -d - 2f, -hw), new Vector3(-hl, 0f, hw), 8f, false);
             ground.Box(new Vector3(hl, -d - 2f, -hw), new Vector3(big, 0f, hw), 8f, false);
             var g = MeshGO("Sol", parent, ground, "Grass", true);
+            g.AddComponent<GroundSurface>().speedFactor = 0.6f;   // l'herbe ralentit le kart (KartLab)
 
             var walls = new MB();
             walls.Box(new Vector3(-hl, -d, -hw - 0.6f), new Vector3(hl, 0.4f, -hw + 0.2f), 4f, false);
@@ -608,7 +640,7 @@ namespace DeVinciKart.EditorTools
             // lac (ellipse)
             var lake = new MB();
             Vector3 c = ParkCenter + new Vector3(-5f, 0.04f, 15f);
-            const int seg = 48; float rx = 110f, rz = 55f; Quaternion rot = Quaternion.Euler(0, 20f, 0);
+            const int seg = 48; float rx = 70f, rz = 35f; Quaternion rot = Quaternion.Euler(0, 20f, 0);
             for (int i = 0; i < seg; i++)
             {
                 float a0 = i * Mathf.PI * 2f / seg, a1 = (i + 1) * Mathf.PI * 2f / seg;
@@ -624,7 +656,7 @@ namespace DeVinciKart.EditorTools
             for (int i = 0; i < 64; i++)
             {
                 float a0 = i * Mathf.PI * 2f / 64, a1 = (i + 1) * Mathf.PI * 2f / 64;
-                foreach (float rr in new[] { 150f })
+                foreach (float rr in new[] { 100f })
                 {
                     Vector3 i0 = ParkCenter + new Vector3(Mathf.Cos(a0), 0, Mathf.Sin(a0)) * (rr - 2f) + Vector3.up * 0.03f;
                     Vector3 i1 = ParkCenter + new Vector3(Mathf.Cos(a1), 0, Mathf.Sin(a1)) * (rr - 2f) + Vector3.up * 0.03f;
@@ -635,7 +667,7 @@ namespace DeVinciKart.EditorTools
             }
             MeshGO("Allees", parent, paths, "Concrete", false);
             var t = Text3D(parent, "PARC ANDRÉ-MALRAUX", Vector3.zero, Quaternion.identity, 4f, Color.white);
-            t.transform.position = ParkCenter + new Vector3(160f, 8f, 210f);
+            t.transform.position = ParkCenter + new Vector3(70f, 8f, 115f);
             t.transform.rotation = Quaternion.Euler(0, -60f, 0);
         }
 
@@ -702,15 +734,7 @@ namespace DeVinciKart.EditorTools
             line.Quad(l0, l1, l2, l3, new Vector2(0, 0), new Vector2(8, 0), new Vector2(8, 1), new Vector2(0, 1), Vector3.up);
             MeshGO("Ligne_Depart", parent, line, "Checker", false);
 
-            // portique des feux (décor)
-            var gantry = new MB();
-            gantry.Box(new Vector3(cx - 7f, 6.6f, 12.6f), new Vector3(cx + 7f, 7.6f, 13.2f), 4f);
-            gantry.Box(new Vector3(cx - 7.2f, 0f, 12.6f), new Vector3(cx - 6.6f, 7.6f, 13.2f), 4f);
-            gantry.Box(new Vector3(cx + 6.6f, 0f, 12.6f), new Vector3(cx + 7.2f, 7.6f, 13.2f), 4f);
-            MeshGO("Portique_Feux", parent, gantry, "DarkMetal", false);
-            for (int i = 0; i < 3; i++)
-                Prim(PrimitiveType.Sphere, $"Feu_{i + 1}", parent, new Vector3(cx - 1.6f + i * 1.6f, 6.1f, 12.5f), Vector3.one * 1.1f, "StartLight");
-            Text3D(parent, "DÉPART", new Vector3(cx, 8.4f, 12.55f), Quaternion.identity, 1.1f, Color.white);
+            Text3D(parent, "DÉPART", new Vector3(cx, 7.2f, 12.3f), Quaternion.identity, 1.1f, Color.white);
         }
 
         // ------------------------------------------------------------------ modèles 3D
@@ -765,8 +789,9 @@ namespace DeVinciKart.EditorTools
         static GameObject PlaceScaled(string key, Transform parent, Vector3 pos, float yaw, float scale)
         {
             var go = InstantiateModel(key, parent, 1f);
-            go.transform.SetPositionAndRotation(pos, Quaternion.Euler(0, yaw, 0));
-            go.transform.localScale = Vector3.one * scale;
+            // on conserve la rotation / l'échelle d'origine de la racine importée (certains .glb Sketchfab en ont une)
+            go.transform.SetPositionAndRotation(pos, Quaternion.Euler(0, yaw, 0) * go.transform.localRotation);
+            go.transform.localScale = go.transform.localScale * scale;
             return go;
         }
 
@@ -783,11 +808,12 @@ namespace DeVinciKart.EditorTools
         static GameObject PlaceFit(string key, Transform parent, Vector3 groundPos, float yaw, float height)
         {
             var go = InstantiateModel(key, parent, height);
-            go.transform.SetPositionAndRotation(Vector3.zero, Quaternion.Euler(0, yaw, 0));
-            go.transform.localScale = Vector3.one;
+            // on conserve la rotation / l'échelle d'origine de la racine importée (sinon Lakitu se retrouve la tête en bas)
+            Vector3 nativeScale = go.transform.localScale;
+            go.transform.SetPositionAndRotation(Vector3.zero, Quaternion.Euler(0, yaw, 0) * go.transform.localRotation);
             var b = WorldBounds(go);
             float s = height / Mathf.Max(b.size.y, 1e-4f);
-            go.transform.localScale = Vector3.one * s;
+            go.transform.localScale = nativeScale * s;
             b = WorldBounds(go);
             go.transform.position += groundPos - new Vector3(b.center.x, b.min.y, b.center.z);
             return go;
@@ -887,13 +913,13 @@ namespace DeVinciKart.EditorTools
             PlaceFit("StatueAnge", parent, StatueCenter + Vector3.up * 4.6f, Mathf.Atan2(toStart.x, toStart.z) * Mathf.Rad2Deg, 11f).name = "Statue";
 
             // Le Pouce, place Carpeaux
-            Prim(PrimitiveType.Cube, "Pouce_Socle", parent, PoucePos + Vector3.up * 0.5f, new Vector3(5f, 1f, 5f), "Concrete");
-            PlaceFit("LePouceModele3d", parent, PoucePos + Vector3.up * 1f, 200f, 12f).name = "Le Pouce";
+            Prim(PrimitiveType.Cube, "Pouce_Socle", parent, PoucePos + Vector3.up * 0.75f, new Vector3(18f, 1.5f, 18f), "Concrete");
+            PlaceFit("LePouceModele3d", parent, PoucePos + Vector3.up * 1.5f, 200f, PouceHeight).name = "Le Pouce (géant)";
 
             // Lakitu au-dessus de la grille de départ
             var bobHolder = new GameObject("Lakitu_Flottement").transform;
             bobHolder.SetParent(parent, false);
-            var lakitu = PlaceFit("Lakitu", bobHolder, Hall(DoorLx + 4.5f, 13.5f, 5f), hallYaw + 180f, 2.2f);
+            var lakitu = PlaceFit("Lakitu", bobHolder, Hall(DoorLx + 4.5f, 10.5f, 5.2f), hallYaw + 180f, 2.2f);
             lakitu.name = "Lakitu";
             var sp = bobHolder.gameObject.AddComponent<Spinner>();
             sp.degreesPerSecond = Vector3.zero;
@@ -903,51 +929,185 @@ namespace DeVinciKart.EditorTools
 
         // ------------------------------------------------------------------ décor de course (purement visuel)
 
+        const string KartLabPrefabs = "Assets/KartLab/Prefabs/";
+
+        static GameObject KLPrefab(string name)
+        {
+            var go = AssetDatabase.LoadAssetAtPath<GameObject>(KartLabPrefabs + name + ".prefab");
+            if (go == null) Warnings.Add($"Prefab KartLab « {name} » introuvable (dossier Assets/KartLab manquant ?).");
+            return go;
+        }
+
+        /// <summary>Rangées de boîtes à objets KartLab (aléatoires) en travers de la route.</summary>
         static void BuildItemBoxes(PathData path, Transform root)
         {
             var parent = new GameObject("Boites_Objets").transform;
             parent.SetParent(root, false);
+            string[] kinds = { "MushroomBox", "StarBox", "GreenShellBox", "BananaBox", "IceFlowerBox" };
             int k = 0;
             foreach (var spot in ItemBoxSpots())
             {
                 int i = path.Nearest(spot);
+                Vector3 f = path.fwd[i]; f.y = 0; f.Normalize();
                 foreach (float off in new[] { -4.5f, -1.5f, 1.5f, 4.5f })
                 {
-                    var box = new GameObject($"BoiteObjet_{k++:00}");
-                    box.transform.SetParent(parent, false);
-                    box.transform.SetPositionAndRotation(path.p[i] + path.right[i] * off + Vector3.up * 1.3f, Quaternion.LookRotation(path.fwd[i]));
-                    var vis = Prim(PrimitiveType.Cube, "Visuel", box.transform, Vector3.zero, Vector3.one * 1.1f, "Rainbow");
-                    var spin = vis.AddComponent<Spinner>();
-                    spin.degreesPerSecond = new Vector3(0, 70, 0);
-                    spin.bobAmplitude = 0.15f;
-                    spin.bobFrequency = 0.6f;
-                    var q1 = Text3D(vis.transform, "?", new Vector3(0, 0, -0.51f), Quaternion.identity, 0.9f, Color.white);
-                    q1.transform.localScale = Vector3.one / 1.1f;
-                    var q2 = Text3D(vis.transform, "?", new Vector3(0, 0, 0.51f), Quaternion.Euler(0, 180, 0), 0.9f, Color.white);
-                    q2.transform.localScale = Vector3.one / 1.1f;
+                    var prefab = KLPrefab(kinds[k % kinds.Length]);
+                    if (prefab == null) return;
+                    var box = (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent);
+                    box.name = $"BoiteObjet_{k:00}";
+                    box.transform.SetPositionAndRotation(path.p[i] + path.right[i] * off + Vector3.up * (RoadLift + 0.1f), Quaternion.LookRotation(f));
+                    var zone = box.GetComponent<TrackZone>();
+                    if (zone != null) zone.fixedItem = ItemKind.None;   // None = objet aléatoire
+                    k++;
                 }
             }
         }
 
+        /// <summary>Bandes d'accélération KartLab (BoostStrip) alignées sur la route.</summary>
         static void BuildBoostPads(PathData path, Transform root)
         {
             var parent = new GameObject("Boosts").transform;
             parent.SetParent(root, false);
-            var mb = new MB();
+            var prefab = KLPrefab("BoostStrip");
+            if (prefab == null) return;
+            int k = 0;
             foreach (var spot in BoostSpots())
             {
-                int c = path.Nearest(spot);
-                int a = Mathf.Max(0, c - 3), b = Mathf.Min(path.Count - 1, c + 3);
-                for (int i = a; i < b; i++)
+                int i = path.Nearest(spot);
+                var strip = (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent);
+                strip.name = $"Boost_{k++}";
+                strip.transform.SetPositionAndRotation(path.p[i] + Vector3.up * (RoadLift + 0.02f), Quaternion.LookRotation(path.fwd[i], Vector3.up));
+            }
+        }
+
+        /// <summary>Ligne centrale utilisée par KartRecovery (retour automatique sur la piste).</summary>
+        static TrackRoute BuildTrackRoute(PathData path, Transform root)
+        {
+            var go = new GameObject("TrackRoute_KartLab");
+            go.transform.SetParent(root, false);
+            var route = go.AddComponent<TrackRoute>();
+            var pts = new List<Vector3>();
+            for (int i = 0; i < path.Count; i += 2) pts.Add(path.p[i] + Vector3.up * (RoadLift + 0.03f));
+            if ((path.Count - 1) % 2 != 0) pts.Add(path.p[path.Count - 1] + Vector3.up * (RoadLift + 0.03f));
+            route.points = pts.ToArray();
+            route.closed = false;
+            route.roadHalfWidth = RoadHalf + CurbW;
+            return route;
+        }
+
+        /// <summary>Checkpoints KartLab (points de réapparition) tous les ~120 m.</summary>
+        static void BuildKartLabCheckpoints(PathData path, Transform root)
+        {
+            var parent = new GameObject("Checkpoints_KartLab").transform;
+            parent.SetParent(root, false);
+            var prefab = KLPrefab("Checkpoint");
+            if (prefab == null) return;
+            int k = 0;
+            for (int i = 80; i < path.Count - 20; i += 120)
+            {
+                var cp = (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent);
+                cp.name = $"Checkpoint_{k++:00}";
+                Vector3 f = path.fwd[i]; f.y = 0; f.Normalize();
+                cp.transform.SetPositionAndRotation(path.p[i] + Vector3.up * (RoadLift + 0.12f), Quaternion.LookRotation(f));
+                cp.transform.localScale = new Vector3(1.75f, 1f, 1f);   // déclencheur sur toute la largeur (12 m + vibreurs)
+            }
+        }
+
+        /// <summary>Kart joueur KartLab (cockpit VR, objets, klaxon…) sur la pole position, dans le hall.</summary>
+        static void PlaceKartLabKart(TrackRoute route)
+        {
+            var prefab = BuildKartVariant() ?? KLPrefab("PlayerKart");
+            if (prefab == null) return;
+            // la caméra du kart remplace la caméra de la scène
+            var oldCam = GameObject.Find("Main Camera");
+            if (oldCam != null) Object.DestroyImmediate(oldCam);
+            var kart = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+            kart.name = "Player Kart";
+            Vector3 pos = Hall(DoorLx - 2.5f, 8f, RoadLift + 0.02f);
+            kart.transform.SetPositionAndRotation(pos, Quaternion.Euler(0f, hallYaw, 0f));
+            foreach (var cam in kart.GetComponentsInChildren<Camera>(true))
+            {
+                cam.farClipPlane = 3000f;
+                cam.gameObject.tag = "MainCamera";
+            }
+            var rec = kart.GetComponent<KartRecovery>();
+            if (rec != null)
+            {
+                rec.route = route;
+                rec.offTrackDelay = 2.5f;   // le saut sous la Grande Arche dure plus d'1 s en l'air
+            }
+            var motor = kart.GetComponent<KartMotor>();
+            if (motor != null) motor.groundMask = 1;   // couche Default : route, sol, tremplin
+            Selection.activeGameObject = kart;
+        }
+
+        /// <summary>Couche 8 « Kart » et conversion des matériaux KartLab (Built-in Standard) vers URP Lit.</summary>
+        public static void EnsureKartLabSetup()
+        {
+            var tagManager = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/TagManager.asset");
+            if (tagManager != null && tagManager.Length > 0)
+            {
+                var so = new SerializedObject(tagManager[0]);
+                var layers = so.FindProperty("layers");
+                if (layers != null && layers.arraySize > 8 && string.IsNullOrEmpty(layers.GetArrayElementAtIndex(8).stringValue))
                 {
-                    float v0 = (i - a) / 6f, v1 = (i + 1 - a) / 6f;
-                    Vector3 up = Vector3.up * (RoadLift + 0.02f);
-                    mb.Quad(path.p[i] - path.right[i] * 2.5f + up, path.p[i + 1] - path.right[i + 1] * 2.5f + up,
-                        path.p[i + 1] + path.right[i + 1] * 2.5f + up, path.p[i] + path.right[i] * 2.5f + up,
-                        new Vector2(0, v0), new Vector2(0, v1), new Vector2(1, v1), new Vector2(1, v0), Vector3.up);
+                    layers.GetArrayElementAtIndex(8).stringValue = "Kart";
+                    so.ApplyModifiedProperties();
                 }
             }
-            MeshGO("Boost_Plaques", parent, mb, "Boost", false);
+
+            var urpLit = Shader.Find("Universal Render Pipeline/Lit");
+            if (urpLit == null) return;
+            int converted = 0;
+            foreach (string guid in AssetDatabase.FindAssets("t:Material", new[] { "Assets/KartLab", "Assets/ThirdParty", "Assets/BEDRILL" }))
+            {
+                var mat = AssetDatabase.LoadAssetAtPath<Material>(AssetDatabase.GUIDToAssetPath(guid));
+                if (mat == null || mat.shader == null) continue;
+                string sn = mat.shader.name;
+                if (sn != "Standard" && sn != "Standard (Specular setup)" && !sn.StartsWith("Legacy Shaders/")) continue;
+                Color col = mat.HasProperty("_Color") ? mat.GetColor("_Color") : Color.white;
+                Texture tex = mat.HasProperty("_MainTex") ? mat.GetTexture("_MainTex") : null;
+                Vector2 ts = mat.HasProperty("_MainTex") ? mat.GetTextureScale("_MainTex") : Vector2.one;
+                Vector2 to = mat.HasProperty("_MainTex") ? mat.GetTextureOffset("_MainTex") : Vector2.zero;
+                float gloss = mat.HasProperty("_Glossiness") ? mat.GetFloat("_Glossiness") : 0.3f;
+                float metal = mat.HasProperty("_Metallic") ? mat.GetFloat("_Metallic") : 0f;
+                Texture bump = mat.HasProperty("_BumpMap") ? mat.GetTexture("_BumpMap") : null;
+                bool emissive = mat.IsKeywordEnabled("_EMISSION");
+                Color emis = mat.HasProperty("_EmissionColor") ? mat.GetColor("_EmissionColor") : Color.black;
+                Texture emisTex = mat.HasProperty("_EmissionMap") ? mat.GetTexture("_EmissionMap") : null;
+                float mode = mat.HasProperty("_Mode") ? mat.GetFloat("_Mode") : 0f;
+                float cutoff = mat.HasProperty("_Cutoff") ? mat.GetFloat("_Cutoff") : 0.5f;
+
+                mat.shader = urpLit;
+                mat.SetColor("_BaseColor", col);
+                mat.SetTexture("_BaseMap", tex);
+                mat.SetTextureScale("_BaseMap", ts);
+                mat.SetTextureOffset("_BaseMap", to);
+                mat.SetFloat("_Smoothness", gloss);
+                mat.SetFloat("_Metallic", metal);
+                if (bump != null) { mat.SetTexture("_BumpMap", bump); mat.EnableKeyword("_NORMALMAP"); }
+                if (emissive) { mat.EnableKeyword("_EMISSION"); mat.SetColor("_EmissionColor", emis); if (emisTex) mat.SetTexture("_EmissionMap", emisTex); }
+                if (mode >= 2f)
+                {
+                    mat.SetFloat("_Surface", 1f);
+                    mat.SetFloat("_Blend", 0f);
+                    mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                    mat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                    mat.SetFloat("_ZWrite", 0f);
+                    mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                    mat.renderQueue = (int)RenderQueue.Transparent;
+                }
+                else if (mode >= 1f)
+                {
+                    mat.SetFloat("_AlphaClip", 1f);
+                    mat.SetFloat("_Cutoff", cutoff);
+                    mat.EnableKeyword("_ALPHATEST_ON");
+                    mat.renderQueue = (int)RenderQueue.AlphaTest;
+                }
+                EditorUtility.SetDirty(mat);
+                converted++;
+            }
+            if (converted > 0) { AssetDatabase.SaveAssets(); Debug.Log($"[DeVinci Kart] {converted} matériaux KartLab convertis en URP Lit."); }
         }
 
         static void BuildFinish(PathData path, int fi, Transform root)
@@ -967,14 +1127,11 @@ namespace DeVinciKart.EditorTools
             gantry.SetParent(parent, false);
             gantry.SetPositionAndRotation(p, Quaternion.LookRotation(f));
             float w = RoadHalf + CurbW + BarrierT + 1f;
-            Prim(PrimitiveType.Cube, "Pilier_G", gantry, new Vector3(-w, 4f, 0), new Vector3(1f, 8f, 1f), "DarkMetal", null, true);
-            Prim(PrimitiveType.Cube, "Pilier_D", gantry, new Vector3(w, 4f, 0), new Vector3(1f, 8f, 1f), "DarkMetal", null, true);
-            Prim(PrimitiveType.Cube, "Banniere", gantry, new Vector3(0, 8.2f, 0), new Vector3(2f * w + 1f, 1.8f, 0.6f), "Checker");
-            Text3D(gantry, "ARRIVÉE · CAMPUS DU PARC", new Vector3(0, 10f, -0.1f), Quaternion.identity, 1.2f, Color.white);
+            Text3D(gantry, "ARRIVÉE · CAMPUS DU PARC", new Vector3(0, 8.3f, -0.1f), Quaternion.identity, 1.2f, Color.white);
 
             var podium = new GameObject("Podium").transform;
             podium.SetParent(parent, false);
-            podium.SetPositionAndRotation(p - r * (w + 9f) + f * 6f, Quaternion.LookRotation(-r));
+            podium.SetPositionAndRotation(p + r * (w + 9f) + f * 30f, Quaternion.LookRotation(r));
             var steps = new[] { (0f, 1.5f, "1", "TrophePremier"), (-2.4f, 1.0f, "2", "Trophe2eme"), (2.4f, 0.7f, "3", "Trophe3eme") };
             foreach (var st in steps)
             {
@@ -987,29 +1144,72 @@ namespace DeVinciKart.EditorTools
             }
         }
 
-        static void BuildChevrons(PathData path, Transform root)
+        static void AddMeshColliders(GameObject go)
         {
-            var parent = new GameObject("Panneaux_Virage").transform;
+            foreach (var mf in go.GetComponentsInChildren<MeshFilter>())
+                if (mf.sharedMesh != null && mf.GetComponent<Collider>() == null)
+                    mf.gameObject.AddComponent<MeshCollider>().sharedMesh = mf.sharedMesh;
+        }
+
+        /// <summary>Tremplin(s) « Saut » posés sur la route et colonnade « PiliersParc » en travers de la route.</summary>
+        static void BuildJumpsAndPillars(PathData path, Transform root)
+        {
+            var parent = new GameObject("Piliers_Parc").transform;
             parent.SetParent(root, false);
-            var boards = new MB(); var posts = new MB();
-            float off = RoadHalf + CurbW + BarrierT + 1.2f;
-            for (int i = 0; i < path.Count; i += 7)
             {
-                Vector3 p = path.p[i];
-                Vector3 toP = new Vector3(p.x - StatueCenter.x, 0, p.z - StatueCenter.z);
-                if (toP.magnitude > 45f) continue;
-                Vector3 outDir = toP.normalized;
-                Vector3 a = path.fwd[i]; a.y = 0; a.Normalize();
-                Vector3 c = p + outDir * off + Vector3.up * 1.9f;
-                Vector3 h = a * 1.5f, v = Vector3.up * 0.6f;
-                boards.Quad(c - h - v, c + h - v, c + h + v, c - h + v, new Vector2(0, 0), new Vector2(1, 0), new Vector2(1, 1), new Vector2(0, 1), -outDir);
-                Vector3 back = outDir * 0.05f;
-                posts.Quad(c - h - v + back, c + h - v + back, c + h + v + back, c - h + v + back, Vector2.zero, Vector2.right, Vector2.one, Vector2.up, outDir);
-                Vector3 pb = p + outDir * (off + 0.1f);
-                posts.Box(pb + new Vector3(-0.08f, 0, -0.08f), pb + new Vector3(0.08f, 1.4f, 0.08f), 2f);
+                int i = path.Nearest(PillarsSpot);
+                Vector3 ff = path.fwd[i]; ff.y = 0; ff.Normalize();
+                var pil = PlaceScaled("PiliersParc", parent, path.p[i] + Vector3.up * RoadLift, Mathf.Atan2(ff.x, ff.z) * Mathf.Rad2Deg, PillarsScale);
+                pil.name = "Piliers_Parc (au milieu de la route)";
+                AddMeshColliders(pil);
             }
-            MeshGO("Chevrons", parent, boards, "Chevron", false);
-            MeshGO("Chevrons_Supports", parent, posts, "DarkMetal", false);
+        }
+
+        /// <summary>Pizzeria à droite et kebab à gauche de la ligne d'arrivée, vitrine (+Z du modèle) tournée vers la route.</summary>
+        static void BuildShops(PathData path, int fi, Transform root)
+        {
+            var parent = new GameObject("Commerces_Arrivee").transform;
+            parent.SetParent(root, false);
+            Vector3 p = path.p[fi], r = path.right[fi];
+            float d = RoadHalf + CurbW + BarrierT + 1f + 13f;
+            Vector3 toRoadFromRight = -r, toRoadFromLeft = r;
+            PlaceFit("pizzeria", parent, p + r * d, Mathf.Atan2(toRoadFromRight.x, toRoadFromRight.z) * Mathf.Rad2Deg, ShopHeight).name = "Pizzeria (droite)";
+            PlaceFit("kebabEsilv", parent, p - r * d, Mathf.Atan2(toRoadFromLeft.x, toRoadFromLeft.z) * Mathf.Rad2Deg, ShopHeight).name = "Kebab ESILV (gauche)";
+            var walk = new MB();
+            foreach (float side in new[] { -1f, 1f })
+            {
+                Vector3 c = p + r * side * d;
+                walk.Box(c - new Vector3(13f, 0.1f, 13f), c + new Vector3(13f, 0.035f, 13f), 6f, false);
+            }
+            MeshGO("Parvis_Commerces", parent, walk, "Concrete", false);
+        }
+
+        /// <summary>Panneaux publicitaires le long de la piste.</summary>
+        static void BuildBillboards(PathData path, Transform root)
+        {
+            var parent = new GameObject("Panneaux_Pub").transform;
+            parent.SetParent(root, false);
+            string[] texts = { "ESILV", "PÔLE LÉONARD\nDE VINCI", "DEVINCI KART", "IIM", "EMLV", "LA DÉFENSE", "NANTERRE", "ESILV" };
+            Color[] cols = { new Color(0.05f, 0.3f, 0.6f), new Color(0.75f, 0.1f, 0.15f), new Color(0.1f, 0.1f, 0.12f), new Color(0.95f, 0.55f, 0.05f) };
+            int k = 0;
+            for (int i = 110; i < path.Count - 60; i += 125)
+            {
+                if (ZoneAt(path.p[i]) != Zone.Normal || path.p[i].y > 0.2f) { i -= 105; continue; }
+                float side = k % 2 == 0 ? 1f : -1f;
+                Vector3 outDir = path.right[i] * side; outDir.y = 0; outDir.Normalize();
+                var bb = new GameObject("Panneau_" + k).transform;
+                bb.SetParent(parent, false);
+                Vector3 pos = path.p[i] + outDir * (RoadHalf + CurbW + BarrierT + 4f); pos.y = 0f;
+                bb.SetPositionAndRotation(pos, Quaternion.LookRotation(outDir));
+                Prim(PrimitiveType.Cube, "Poteau_G", bb, new Vector3(-3.2f, 2.5f, 0.2f), new Vector3(0.3f, 5f, 0.3f), "DarkMetal");
+                Prim(PrimitiveType.Cube, "Poteau_D", bb, new Vector3(3.2f, 2.5f, 0.2f), new Vector3(0.3f, 5f, 0.3f), "DarkMetal");
+                var board = Prim(PrimitiveType.Cube, "Panneau", bb, new Vector3(0, 4.2f, 0), new Vector3(8f, 3f, 0.25f), "White");
+                var mpb = new MaterialPropertyBlock();
+                mpb.SetColor("_BaseColor", cols[k % cols.Length]);
+                board.GetComponent<Renderer>().SetPropertyBlock(mpb);
+                Text3D(bb, texts[k % texts.Length].Replace("\\n", "\n"), new Vector3(0, 4.2f, -0.15f), Quaternion.identity, 1.1f, Color.white);
+                k++;
+            }
         }
 
         // ------------------------------------------------------------------ décor
@@ -1021,6 +1221,7 @@ namespace DeVinciKart.EditorTools
             var rng = new System.Random(42);
             System.Func<float, float, float> R = (a, b) => a + (float)rng.NextDouble() * (b - a);
 
+            Vector3 finishP = path.p[Mathf.Max(0, path.Count - 16)];
             var coarse = new List<Vector2>();
             for (int i = 0; i < path.Count; i += 4) coarse.Add(new Vector2(path.p[i].x, path.p[i].z));
             System.Func<float, float, float, bool> NearRoad = (x, z, d) =>
@@ -1039,9 +1240,11 @@ namespace DeVinciKart.EditorTools
                 Vector3 b = bridgeW2L.MultiplyPoint3x4(p);
                 if (Mathf.Abs(b.x) < TrenchHalfLen + 10f && Mathf.Abs(b.z) < TrenchHalfW + 6f) return true; // tranchée
                 if (new Vector2(x - StatueCenter.x, z - StatueCenter.z).magnitude < 26f) return true;
-                if (new Vector2(x - PoucePos.x, z - PoucePos.z).magnitude < 12f) return true;
+                if (new Vector2(x - finishP.x, z - finishP.z).magnitude < 50f) return true;    // pizzeria / kebab / podium
+                if (new Vector2(x - PoucePos.x, z - PoucePos.z).magnitude < 20f) return true;
                 Vector3 lk = Quaternion.Euler(0, -20f, 0) * (p - (ParkCenter + new Vector3(-5f, 0, 15f)));
-                if ((lk.x * lk.x) / (118f * 118f) + (lk.z * lk.z) / (63f * 63f) < 1f) return true; // lac
+                if ((lk.x * lk.x) / (78f * 78f) + (lk.z * lk.z) / (43f * 43f) < 1f) return true; // lac
+                if (IsReserved(x, z, 4f)) return true;                                          // tribunes, paddock, etc.
                 return NearRoad(x, z, 15f);
             };
 
@@ -1068,8 +1271,8 @@ namespace DeVinciKart.EditorTools
             for (int tries = 0; tries < 8000 && placed < 260; tries++)
             {
                 // alignements d'arbres le long de l'axe (Terrasses de Nanterre)
-                float s = R(-1150f, -380f), side = rng.Next(2) == 0 ? -1f : 1f;
-                Vector3 p = A(s) + new Vector3(-AxisEast.z, 0, AxisEast.x) * side * R(18f, 45f);
+                float s = R(-700f, -170f), side = rng.Next(2) == 0 ? -1f : 1f;
+                Vector3 p = A(s) + new Vector3(-AxisEast.z, 0, AxisEast.x) * side * R(18f, 260f);
                 if (Blocked(p.x, p.z)) continue;
                 Tree(p, R(3f, 5f), R(3f, 5f));
                 placed++;
@@ -1083,61 +1286,12 @@ namespace DeVinciKart.EditorTools
             }
             FlushCombined(trees, "Arbres", parent);
 
-            // Lampadaires
-            var lamps = new Dictionary<string, List<CombineInstance>>();
-            for (int i = 0; i < path.Count; i += 28)
-            {
-                if (ZoneAt(path.p[i]) != Zone.Normal || path.p[i].y > 0.2f) continue;
-                int side = (i / 28) % 2 == 0 ? 1 : -1;
-                Vector3 bp = path.p[i] + path.right[i] * side * (RoadHalf + CurbW + BarrierT + 1.5f);
-                bp.y = 0f;
-                AddCombined(lamps, "DarkMetal", cylMesh, Matrix4x4.TRS(bp + Vector3.up * 3.5f, Quaternion.identity, new Vector3(0.2f, 3.5f, 0.2f)));
-                AddCombined(lamps, "DarkMetal", cubeMesh, Matrix4x4.TRS(bp + Vector3.up * 7f - path.right[i] * side * 1.2f,
-                    Quaternion.LookRotation(path.right[i]), new Vector3(0.15f, 0.15f, 2.6f)));
-                AddCombined(lamps, "LampHead", sphereMesh, Matrix4x4.TRS(bp + Vector3.up * 6.8f - path.right[i] * side * 2.3f, Quaternion.identity, Vector3.one * 0.6f));
-            }
-            FlushCombined(lamps, "Lampadaires", parent);
-
-            // Tours du quartier d'affaires (côté est de l'Arche) et immeubles de Nanterre (le long de l'axe)
-            var towers = new MB();
-            var blocks = new MB();
-            int nt = 0;
-            for (int tries = 0; tries < 2000 && nt < 45; tries++)
-            {
-                float x = R(130f, 900f), z = R(-420f, 320f);
-                float w = R(22f, 45f), d = R(22f, 45f), h = R(70f, 230f);
-                if (NearRoad(x, z, 45f) || Blocked(x, z) || new Vector2(x - StatueCenter.x, z - StatueCenter.z).magnitude < 70f
-                    || new Vector2(x - PoucePos.x, z - PoucePos.z).magnitude < 45f) continue;
-                towers.Box(new Vector3(x - w / 2, 0, z - d / 2), new Vector3(x + w / 2, h, z + d / 2), 12f, false);
-                nt++;
-            }
-            int nb = 0;
-            for (int tries = 0; tries < 3000 && nb < 70; tries++)
-            {
-                float s = R(-1150f, -380f), side = rng.Next(2) == 0 ? -1f : 1f;
-                Vector3 p = A(s) + new Vector3(-AxisEast.z, 0, AxisEast.x) * side * R(60f, 220f);
-                float w = R(20f, 40f), d = R(15f, 30f), h = R(15f, 55f);
-                if (NearRoad(p.x, p.z, 35f) || Blocked(p.x, p.z) || new Vector2(p.x - ParkCenter.x, p.z - ParkCenter.z).magnitude < ParkRadius + 20f) continue;
-                blocks.Box(new Vector3(p.x - w / 2, 0, p.z - d / 2), new Vector3(p.x + w / 2, h, p.z + d / 2), 10f, false);
-                nb++;
-            }
-            MeshGO("Tours_LaDefense", parent, towers, "Glass", false);
-            MeshGO("Immeubles_Nanterre", parent, blocks, "Building", false);
+            BuildVegetation(path, parent, rng, Blocked);
+            BuildSkyline(parent, rng, NearRoad, Blocked);
         }
 
         static void SetupCameraAndLighting()
         {
-            var cam = Camera.main;
-            if (cam == null)
-            {
-                var cg = new GameObject("Main Camera") { tag = "MainCamera" };
-                cam = cg.AddComponent<Camera>();
-                cg.AddComponent<AudioListener>();
-            }
-            cam.farClipPlane = 4000f;
-            cam.nearClipPlane = 0.1f;
-            Vector3 eye = Hall(DoorLx, HallZ0 + 1.5f, 2.2f);
-            cam.transform.SetPositionAndRotation(eye, Quaternion.LookRotation(Hall(DoorLx, DoorLz, 1.5f) - eye));
 
             var sunGO = GameObject.Find("Directional Light");
             var sun = sunGO ? sunGO.GetComponent<Light>() : null;

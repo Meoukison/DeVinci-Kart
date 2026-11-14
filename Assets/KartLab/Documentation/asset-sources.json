@@ -1,0 +1,108 @@
+[
+  {
+    "pack": "car-kit",
+    "page": "https://kenney.nl/assets/car-kit",
+    "download": "https://kenney.nl/media/pages/assets/car-kit/1a312ec241-1775131960/kenney_car-kit.zip",
+    "license": "CC0",
+    "download_bytes": 4814237
+  },
+  {
+    "pack": "racing-kit",
+    "page": "https://kenney.nl/assets/racing-kit",
+    "download": "https://kenney.nl/media/pages/assets/racing-kit/933b8fd9fd-1677580949/kenney_racing-kit.zip",
+    "license": "CC0",
+    "download_bytes": 6082755
+  },
+  {
+    "pack": "interface-sounds",
+    "page": "https://kenney.nl/assets/interface-sounds",
+    "download": "https://kenney.nl/media/pages/assets/interface-sounds/fa43c1dd4d-1677589452/kenney_interface-sounds.zip",
+    "license": "CC0",
+    "download_bytes": 834536
+  },
+  {
+    "pack": "food-kit",
+    "page": "https://kenney.nl/assets/food-kit",
+    "download": "https://kenney.nl/media/pages/assets/food-kit/83086fa91c-1719418518/kenney_food-kit.zip",
+    "license": "CC0",
+    "download_bytes": 4606270,
+    "imported_models": [
+      "banana",
+      "ice-cream-scoop-mint",
+      "mushroom"
+    ]
+  },
+  {
+    "pack": "platformer-kit",
+    "page": "https://kenney.nl/assets/platformer-kit",
+    "download": "https://kenney.nl/media/pages/assets/platformer-kit/1585cf62b4-1775122253/kenney_platformer-kit.zip",
+    "license": "CC0",
+    "download_bytes": 4640135,
+    "imported_models": [
+      "arrows",
+      "button-round",
+      "coin-gold",
+      "crate-item",
+      "flowers",
+      "flowers-tall",
+      "jewel",
+      "plant",
+      "rocks",
+      "sign",
+      "star",
+      "tree",
+      "tree-pine"
+    ]
+  },
+  {
+    "pack": "sports-steering-wheel",
+    "page": "https://grab3d.com/models/vehicles/sports-steering-wheel/",
+    "download": "https://grab3d.com/dl/sports-steering-wheel/sports-steering-wheel-obj.zip",
+    "license": "CC0",
+    "sha256": "0b27fa4bf283e422ea87cd5b4cad25658f21ef9d7a5cc508cf3a6e1dcfe9f652"
+  },
+  {
+    "pack": "instrument-cluster",
+    "page": "https://grab3d.com/models/vehicles/instrument-cluster/",
+    "download": "https://grab3d.com/dl/instrument-cluster/instrument-cluster-obj.zip",
+    "license": "CC0",
+    "sha256": "86e22bc7cf482594693ba83893d93a18e4a17b930f6b61b9ea1cf9c82d625ce2"
+  },
+  {
+    "pack": "racing-audio",
+    "page": "https://opengameart.org/content/racing-car-engine-sound-loops",
+    "license": "Engine CC0; skid CC BY 3.0; see License.txt"
+  },
+  {
+    "pack": "human-hand",
+    "page": "https://grab3d.com/models/anatomy/human-hand/",
+    "download": "https://grab3d.com/dl/human-hand/human-hand-obj.zip",
+    "license": "CC0",
+    "modifications": "Removed stand, curled fingers, mirrored left hand, recolored as glove"
+  },
+  {
+    "pack": "crash-collision",
+    "page": "https://opengameart.org/content/crash-collision",
+    "license": "CC0",
+    "author": "qubodup"
+  },
+  {
+    "pack": "keith-racing-kart",
+    "page": "https://opengameart.org/content/racing-kart",
+    "download": "https://opengameart.org/sites/default/files/racing_kart.zip",
+    "license": "CC0",
+    "author": "Keith at Fertile Soil Productions",
+    "sha256": "21e591a20f319ee7fe1fdad586a18d6dc77e411e7a55d68e3b97d584f48bd804",
+    "adaptation": "Complete body retained; metre/axis conversion, renamed components, replacement steering rim, recolored materials and animated wheels."
+  },
+  {
+    "pack": "horn-audio",
+    "author": "Le tiroir du fond",
+    "page": "https://lasonotheque.org/klaxon-1-s3504.html",
+    "download": "https://lasonotheque.org/UPLOAD/ogg/3504.ogg?v=d",
+    "license": "CC0",
+    "sha256": "1c9b3211f58e7bf4638c71df85df5d09290416d310e1626ee71ee73e4777205f",
+    "adaptation": "horn-loop.wav: stable 60\u2013130ms source segment with 10ms wrap crossfade; PCM sustain loop; original Ogg retained.",
+    "derivedSha256": "47cceb5632a9d17a3880161c48107cd2c3fa9fa946eab9fcc988e693982ec786"
+  }
+]

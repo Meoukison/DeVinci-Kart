@@ -1,0 +1,103 @@
+fileFormatVersion: 2
+guid: d28bd0f51a927bc429a0f580b5017344
+ScriptedImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 2
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+  script: {fileID: 11500000, guid: 715df9372183c47e389bb6e19fbc3b52, type: 3}
+  editorImportSettings:
+    generateSecondaryUVSet: 0
+  importSettings:
+    nodeNameMethod: 1
+    animationMethod: 2
+    generateMipMaps: 1
+    texturesReadable: 0
+    defaultMinFilterMode: 9729
+    defaultMagFilterMode: 9729
+    anisotropicFilterLevel: 1
+  instantiationSettings:
+    mask: -1
+    layer: 0
+    skinUpdateWhenOffscreen: 1
+    lightIntensityFactor: 1
+    sceneObjectCreation: 2
+  assetDependencies:
+  - type: 0
+    originalUri: Assets\CitySlicker\scene.bin
+    assetPath: Assets\CitySlicker\scene.bin
+  - type: 0
+    originalUri: Assets\CitySlicker\textures\t_city_asphalt1_baseColor.png
+    assetPath: Assets\CitySlicker\textures\t_city_asphalt1_baseColor.png
+  - type: 0
+    originalUri: Assets\CitySlicker\textures\t_city_concrete_wall01_baseColor.png
+    assetPath: Assets\CitySlicker\textures\t_city_concrete_wall01_baseColor.png
+  - type: 0
+    originalUri: Assets\CitySlicker\textures\t_grass01_baseColor.png
+    assetPath: Assets\CitySlicker\textures\t_grass01_baseColor.png
+  - type: 0
+    originalUri: Assets\CitySlicker\textures\t_beton1_baseColor.png
+    assetPath: Assets\CitySlicker\textures\t_beton1_baseColor.png
+  - type: 0
+    originalUri: Assets\CitySlicker\textures\t_zoo_wall_baseColor.png
+    assetPath: Assets\CitySlicker\textures\t_zoo_wall_baseColor.png
+  - type: 0
+    originalUri: Assets\CitySlicker\textures\t_roche01_baseColor.png
+    assetPath: Assets\CitySlicker\textures\t_roche01_baseColor.png
+  - type: 0
+    originalUri: Assets\CitySlicker\textures\t_city_bike_way1_baseColor.png
+    assetPath: Assets\CitySlicker\textures\t_city_bike_way1_baseColor.png
+  - type: 0
+    originalUri: Assets\CitySlicker\textures\t_city_bike_way2_baseColor.png
+    assetPath: Assets\CitySlicker\textures\t_city_bike_way2_baseColor.png
+  - type: 0
+    originalUri: Assets\CitySlicker\textures\NoisePattern_1_baseColor.png
+    assetPath: Assets\CitySlicker\textures\NoisePattern_1_baseColor.png
+  - type: 0
+    originalUri: Assets\CitySlicker\textures\t_grass02_baseColor.png
+    assetPath: Assets\CitySlicker\textures\t_grass02_baseColor.png
+  - type: 0
+    originalUri: Assets\CitySlicker\textures\t_gardrail01_baseColor.png
+    assetPath: Assets\CitySlicker\textures\t_gardrail01_baseColor.png
+  - type: 0
+    originalUri: Assets\CitySlicker\textures\t_camp_mud_baseColor.png
+    assetPath: Assets\CitySlicker\textures\t_camp_mud_baseColor.png
+  - type: 0
+    originalUri: Assets\CitySlicker\textures\t_camp_mud_normal.png
+    assetPath: Assets\CitySlicker\textures\t_camp_mud_normal.png
+  - type: 0
+    originalUri: Assets\CitySlicker\textures\t_city_buidings1_baseColor.png
+    assetPath: Assets\CitySlicker\textures\t_city_buidings1_baseColor.png
+  - type: 0
+    originalUri: Assets\CitySlicker\textures\t_city_statue_garfiel_baseColor.png
+    assetPath: Assets\CitySlicker\textures\t_city_statue_garfiel_baseColor.png
+  - type: 0
+    originalUri: Assets\CitySlicker\textures\t_city_assets1_baseColor.png
+    assetPath: Assets\CitySlicker\textures\t_city_assets1_baseColor.png
+  - type: 0
+    originalUri: Assets\CitySlicker\textures\t_startLine1_baseColor.png
+    assetPath: Assets\CitySlicker\textures\t_startLine1_baseColor.png
+  - type: 0
+    originalUri: Assets\CitySlicker\textures\t_city_fence2_baseColor.png
+    assetPath: Assets\CitySlicker\textures\t_city_fence2_baseColor.png
+  - type: 0
+    originalUri: Assets\CitySlicker\textures\t_concret_block1_baseColor.png
+    assetPath: Assets\CitySlicker\textures\t_concret_block1_baseColor.png
+  - type: 0
+    originalUri: Assets\CitySlicker\textures\Boost_baseColor.png
+    assetPath: Assets\CitySlicker\textures\Boost_baseColor.png
+  - type: 0
+    originalUri: Assets\CitySlicker\textures\m_Glow_Obs_barriere1_baseColor.png
+    assetPath: Assets\CitySlicker\textures\m_Glow_Obs_barriere1_baseColor.png
+  - type: 0
+    originalUri: Assets\CitySlicker\textures\Boost_shadow_baseColor.png
+    assetPath: Assets\CitySlicker\textures\Boost_shadow_baseColor.png
+  - type: 0
+    originalUri: Assets\CitySlicker\textures\M_puzzle_baseColor.png
+    assetPath: Assets\CitySlicker\textures\M_puzzle_baseColor.png
+  - type: 0
+    originalUri: Assets\CitySlicker\textures\M_haloPuzzle_baseColor.png
+    assetPath: Assets\CitySlicker\textures\M_haloPuzzle_baseColor.png
+  reportItems: []
