@@ -85,7 +85,7 @@ namespace DeVinciKart.EditorTools
             if (new Vector2(p.x, p.z).magnitude < 92f) return true;                                          // Grande Arche
             Vector3 b = bridgeW2L.MultiplyPoint3x4(p);
             if (Mathf.Abs(b.x) < TrenchHalfLen + 9f && Mathf.Abs(b.z) < TrenchHalfW + 5f) return true;       // tranchée
-            if (new Vector2(p.x - StatueCenter.x, p.z - StatueCenter.z).magnitude < 24f) return true;        // statue
+            if (ModuleBlocked(p) || ViaductBlocked(p)) return true;                                          // quartier City Slicker, viaduc
             if (new Vector2(p.x - finishPoint.x, p.z - finishPoint.z).magnitude < 46f) return true;          // pizzeria / kebab / podium
             if (new Vector2(p.x - PoucePos.x, p.z - PoucePos.z).magnitude < 14f) return true;                // Le Pouce
             Vector3 lk = Quaternion.Euler(0, -20f, 0) * (p - (ParkCenter + new Vector3(-5f, 0, 15f)));
@@ -193,7 +193,7 @@ namespace DeVinciKart.EditorTools
 
         static bool NearMonument(Vector3 p) => cityMode ? CityBlocked(p) :
             new Vector2(p.x - PoucePos.x, p.z - PoucePos.z).magnitude < 11.5f ||
-            new Vector2(p.x - StatueCenter.x, p.z - StatueCenter.z).magnitude < 22f ||
+            ModuleBlocked(p, 3f) || ViaductBlocked(p) ||
             OldCampusFootprint(p);
 
         static bool OldCampusFootprint(Vector3 p)
@@ -279,7 +279,7 @@ namespace DeVinciKart.EditorTools
                     if (j < 30 || j >= n - 30 || !OnGround(path, j) || !OnGround(path, j - 3) || !OnGround(path, j + 3) || radius[j] < 60f) continue;
                     Vector3 p = path.p[j]; p.y = 0f;
                     Vector3 r = Flat(path.right[j]);
-                    if (NearMonument(p + r * 8.6f) || NearMonument(p - r * 8.6f)) continue;
+                    if (NearMonument(p + r * 8.6f) || NearMonument(p - r * 8.6f) || UnderBridge(path, p)) continue;
                     Prop(Bed + "Arch_01_free_obs.prefab", arches, p, Quaternion.LookRotation(-Flat(path.fwd[j])), 1.15f);
                     break;
                 }
@@ -346,13 +346,11 @@ namespace DeVinciKart.EditorTools
         /// <summary>Tremplin sur toute la largeur de la piste, sous la Grande Arche : entrée à fleur de route, sortie à 1,6 m.</summary>
         static void BuildKicker(PathData path, Transform root) => BuildKickerAt(path, root, path.Nearest(A(38f, ArchFloor)), "Tremplin_Arche");
 
-        static void BuildKickerAt(PathData path, Transform root, int i0, string name)
+        static void BuildKickerAt(PathData path, Transform root, int i0, string name, int len = 9, float h = 1.6f, float hw = -1f)
         {
             var parent = Group(name, root);
-            const int len = 9;
-            const float h = 1.6f;
-            if (i0 + len + 1 >= path.Count) return;
-            float hw = RoadHalf + CurbW;
+            if (i0 < 0 || i0 + len + 1 >= path.Count) return;
+            if (hw <= 0f) hw = RoadHalf + CurbW;
             System.Func<int, float, float, Vector3> P = (k, lat, dy) => path.p[i0 + k] + path.right[i0 + k] * lat + Vector3.up * (RoadLift + dy);
             System.Func<int, float> Y = k => 0.012f + h * (k / (float)len) * (k / (float)len);
 
@@ -978,6 +976,12 @@ namespace DeVinciKart.EditorTools
             var mc = Mat("TowerClouds", Color.white, clouds, 0.25f);
             mc.SetTextureScale("_BaseMap", new Vector2(3f, 3f));
             Mat("Crowd", Color.white, crowd, 0.15f);
+            var dirt = Tex("dirt", 128, 128, (u, v, x, y) =>
+            {
+                float n = Fbm(u, v, 8, 4, 31) * 0.35f + Hash(x, y, 7) * 0.12f;
+                return new Color(0.42f + n * 0.5f, 0.29f + n * 0.35f, 0.17f + n * 0.2f);
+            });
+            Mat("Dirt", Color.white, dirt, 0.05f);
             Mat("BalloonRed", Color.white, bRed, 0.35f).SetTextureScale("_BaseMap", new Vector2(2f, 1f));
             Mat("BalloonBlue", Color.white, bBlue, 0.35f).SetTextureScale("_BaseMap", new Vector2(2f, 1f));
             Mat("BalloonYellow", Color.white, bYellow, 0.35f).SetTextureScale("_BaseMap", new Vector2(2f, 1f));
@@ -988,10 +992,22 @@ namespace DeVinciKart.EditorTools
 
         /// <summary>Lance le jeu avec un pilote automatique qui parcourt la piste et écrit Logs/DeVinciKart_TestPiste.txt.</summary>
         [MenuItem("DeVinci Kart/Tester la piste (pilote auto)")]
-        public static void TestTrack()
+        public static void TestTrack() => TestOn("");
+
+        [MenuItem("DeVinci Kart/Tester une variante/Pont en arc avec saut (piste 1)")]
+        public static void TestAltBridge() => TestOn("TestRoute_Variante_PontArc");
+
+        [MenuItem("DeVinci Kart/Tester une variante/Tunnel sous la colline (piste 1)")]
+        public static void TestAltTunnel() => TestOn("TestRoute_Raccourci_Tunnel");
+
+        [MenuItem("DeVinci Kart/Tester une variante/Piste en terre (piste 1)")]
+        public static void TestAltDirt() => TestOn("TestRoute_Raccourci_Terre");
+
+        static void TestOn(string route)
         {
             if (EditorApplication.isPlaying) return;
             SessionState.SetBool(TrackAutopilotTest.SessionKey, true);
+            SessionState.SetString(TrackAutopilotTest.RouteKey, route);
             EditorApplication.isPlaying = true;
         }
     }

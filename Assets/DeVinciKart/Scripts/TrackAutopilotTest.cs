@@ -12,7 +12,7 @@ namespace DeVinciKart
     /// </summary>
     public class TrackAutopilotTest : MonoBehaviour
     {
-        public const string SessionKey = "DeVinciKart.Autopilot";
+        public const string SessionKey = "DeVinciKart.Autopilot", RouteKey = "DeVinciKart.AutopilotRoute";
         public KartMotor motor;
         public TrackRoute route;
         public float lookAhead = 14f, maxSeconds = 420f, timeScale = 3f;
@@ -41,14 +41,29 @@ namespace DeVinciKart
         void Start()
         {
             if (!motor) motor = FindAnyObjectByType<KartMotor>();
+            #if UNITY_EDITOR
+            string wanted = UnityEditor.SessionState.GetString(RouteKey, "");
+            UnityEditor.SessionState.SetString(RouteKey, "");
+            if (!route && wanted.Length > 0)
+                foreach (var r in Resources.FindObjectsOfTypeAll<TrackRoute>())
+                    if (r.gameObject.scene.IsValid() && r.gameObject.name == wanted) { route = r; break; }
+#endif
+            if (!route) foreach (var r in TrackRoute.All) if (!r.alternative) { route = r; break; }
             if (!route) route = FindAnyObjectByType<TrackRoute>();
+            // le pilote auto ne sait pas esquiver : on neutralise les obstacles mobiles pour tester le tracé lui-même
+            int movers = 0;
+            foreach (var m in FindObjectsByType<PingPongMover>(FindObjectsSortMode.None))
+            {
+                foreach (var c in m.GetComponentsInChildren<Collider>()) c.enabled = false;
+                movers++;
+            }
             input = motor.input;
             recovery = motor.GetComponent<KartRecovery>();
             input.useExternalInput = true;
             recoveriesAtStart = recovery ? recovery.RecoveryCount : 0;
             Time.timeScale = timeScale;
             t0 = Time.time;
-            Log($"Départ : {motor.transform.position}  points route : {route.points.Length}");
+            Log($"Départ : {motor.transform.position}  route « {route.name} »  points : {route.points.Length}  (obstacles mobiles neutralisés : {movers})");
         }
 
         void Log(string s) { log.AppendLine($"[{Time.time - t0,6:0.0}s] {s}"); Debug.Log("[TestPiste] " + s); }

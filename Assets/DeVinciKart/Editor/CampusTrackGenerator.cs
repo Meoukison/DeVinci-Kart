@@ -60,7 +60,7 @@ namespace DeVinciKart.EditorTools
         const float JumpScale = 13f, PillarsScale = 16f, ShopHeight = 17f;
         // =====================================================================
 
-        enum Zone { Hall, Bridge, Normal }
+        enum Zone { Hall, Bridge, Module, Normal }
 
         class PathData
         {
@@ -114,13 +114,6 @@ namespace DeVinciKart.EditorTools
         static Vector3[] ControlPoints()
         {
             Vector3 e = (PoucePos - PoleDoor); e.y = 0; e.Normalize();
-            Vector3 S = StatueCenter; float r = StatueR;
-            // épingle entre la statue et l'axe : arc tangent à l'axe (rayon 26 m)
-            Vector3 nrm = new Vector3(-AxisEast.z, 0, AxisEast.x);
-            const float Rh = 26f;
-            float cx = S.x + r - Rh, cz = (Rh - cx * nrm.x) / nrm.z;
-            Vector3 tang = new Vector3(cx, 0, cz) - nrm * Rh;
-            float aEnd = Mathf.Atan2(tang.z - cz, tang.x - cx) * Mathf.Rad2Deg;
             var pts = new List<Vector3>
             {
                 Hall(DoorLx, HallZ0 + 4f),       // fond du hall : départ
@@ -128,37 +121,39 @@ namespace DeVinciKart.EditorTools
                 Hall(DoorLx, DoorLz),            // porte sous la marquise
                 Hall(DoorLx, 30f),
                 PoleDoor + e * 45f,
-                new Vector3(20, 0, 182),
+                new Vector3(20, 0, 182),         // camion-poubelle qui manœuvre
                 new Vector3(62, 0, 138),
                 new Vector3(104, 0, 78),         // Le Pouce géant à gauche
-                new Vector3(145, 0, 55),
-                S + new Vector3(0, 0, r),        // rond-point de la statue
-                S + new Vector3(r * 0.707f, 0, r * 0.707f),
-                S + new Vector3(r, 0, 0),
-                new Vector3(S.x + r + 1f, 0, -30f),
+                N(76, 94),                       // virage serré vers l'entrée du quartier City Slicker
             };
-            for (int k = 0; k < 5; k++)
-            {
-                float ang = Mathf.Lerp(-10f, aEnd, k / 4f) * Mathf.Deg2Rad;
-                pts.Add(new Vector3(cx + Rh * Mathf.Cos(ang), 0, cz + Rh * Mathf.Sin(ang)));
-            }
+            // quartier City Slicker : vallée sous les ponts, épingle, remontée, grand pont, rond-point de l'Ange
+            foreach (var c in ModMain) pts.Add(Mod(c));
             pts.AddRange(new[]
             {
-                A(185), A(165),
+                A(200), A(165),                  // ralentisseurs, puis montée vers l'esplanade
                 A(55, ArchFloor),                // haut des marches
                 A(0, ArchFloor),                 // SOUS la Grande Arche (tremplin)
                 A(-62, ArchFloor),
-                A(-160),
+                N(-92, 7, ArchFloor - 4.5f),     // S rapide dans la descente, sous le viaduc
+                N(-122, -7, ArchFloor - 11f),
+                A(-160, 0.3f),
                 A(-215), A(-270),                // pont au-dessus du boulevard circulaire
-                N(-335, 20), N(-380, 70), N(-360, 125), N(-300, 150),   // Terrasses de Nanterre : enchaînement de virages
-                N(-290, 200), N(-360, 232), N(-460, 210), N(-515, 150),
-                N(-505, 90), N(-540, 45), N(-600, 40), N(-650, 40),     // ligne d'arrivée, Campus du Parc
+                // Terrasses : boucle qui repasse au-dessus d'elle-même
+                N(-300, 0), N(-330, 2, 0.5f), N(-358, 18, 2.5f), N(-366, 40, 4.5f), N(-352, 64, 6.5f), N(-325, 72, 8f), N(-302, 56, 9f),
+                N(-294, 30, 9.3f), N(-294, 0, 9.3f), N(-296, -22, 7.5f), N(-312, -44, 4.5f), N(-338, -56, 1.5f), N(-362, -56),
+                // chicane avec barrières coulissantes
+                N(-384, -50), N(-406, -61), N(-426, -50),
+                // épingle à droite puis bosse
+                N(-436, -44), N(-450, -24), N(-448, 2, 1.5f), N(-442, 30, 5f), N(-440, 52, 6f), N(-442, 72, 2f), N(-446, 92),
+                // épingle à gauche puis arrivée au Campus du Parc
+                N(-458, 118), N(-484, 124), N(-505, 108), N(-512, 84), N(-528, 60), N(-555, 44), N(-600, 40), N(-650, 40),
             });
             return pts.ToArray();
         }
 
-        static Vector3[] ItemBoxSpots() => new[] { PoleDoor + (PoucePos - PoleDoor).normalized * 75f, new Vector3(150, 0, 53), A(-170), N(-370, 100), N(-470, 205) };
-        static Vector3[] BoostSpots() => new[] { A(150, 1f), A(48, ArchFloor), N(-290, 8), N(-512, 125) };
+        static Vector3[] ItemBoxSpots() => new[] { PoleDoor + (PoucePos - PoleDoor).normalized * 75f, N(60, 108), Mod(-80f, -7f, -14f), Mod(-139f, -3.5f, -145f),
+                                                   A(-170), N(-368, -55), N(-484, 124) };
+        static Vector3[] BoostSpots() => new[] { A(150, 1f), A(48, ArchFloor), Mod(-86.3f, -4.2f, 51.3f), Mod(-140.8f, -2.6f, -129.1f), N(-345, 9, 1.5f), N(-512, 84) };
         static Vector3 PillarsSpot => N(-572, 43);
 
         [MenuItem("DeVinci Kart/Générer la piste Campus → Campus")]
@@ -174,6 +169,10 @@ namespace DeVinciKart.EditorTools
                 GrabPrimitiveMeshes();
                 font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
                 ComputeFrames();
+                ComputeModuleFrame();
+                moduleActive = true;
+                itemSerial = 0;
+                altCPath = null;
 
                 EditorUtility.DisplayProgressBar("DeVinci Kart", "Textures et matériaux…", 0.1f);
                 CreateMaterials();
@@ -184,8 +183,14 @@ namespace DeVinciKart.EditorTools
                 var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
                 var root = new GameObject("Piste_Campus").transform;
 
+                EditorUtility.DisplayProgressBar("DeVinci Kart", "Quartier City Slicker (rond-point de l'Ange, parc, ponts)…", 0.15f);
+                BuildModule(root);
+
                 EditorUtility.DisplayProgressBar("DeVinci Kart", "Tracé de la piste…", 0.2f);
                 var path = BuildPath(ControlPoints(), Step);
+                int missed = SnapToModule(path);
+                if (missed > 30) Warnings.Add($"{missed} points du tracé n'ont pas trouvé la route du quartier City Slicker.");
+                altCPath = PrepareDirtShortcut(path);
                 var trackGO = new GameObject("TrackPath");
                 trackGO.transform.SetParent(root, false);
                 var tp = trackGO.AddComponent<TrackPath>();
@@ -222,6 +227,12 @@ namespace DeVinciKart.EditorTools
                 BuildTrackProps(path, finishIdx, root);
                 BuildLife(path, finishIdx, root);
 
+                EditorUtility.DisplayProgressBar("DeVinci Kart", "Variantes, raccourcis, viaduc, obstacles…", 0.83f);
+                BuildModuleAlternatives(path, root);
+                BuildDirtShortcut(path, root);
+                BuildViaduct(path, root);
+                BuildObstaclesAndRoadProps(path, root);
+
                 EditorUtility.DisplayProgressBar("DeVinci Kart", "Arbres, lampadaires, tours…", 0.85f);
                 BuildDecor(path, root);
 
@@ -235,13 +246,15 @@ namespace DeVinciKart.EditorTools
                 EditorSceneManager.SaveScene(scene, ScenePath);
                 AddSceneToBuild(ScenePath);
 
-                string msg = $"Piste générée : {path.length:0} m.\nScène : {ScenePath}";
+                string msg = $"Piste générée : {path.length:0} m (quartier City Slicker, boucle, chicane, 3 variantes / raccourcis).\nScène : {ScenePath}";
                 if (Warnings.Count > 0) msg += "\n\nAttention :\n- " + string.Join("\n- ", Warnings);
                 EditorUtility.ClearProgressBar();
                 EditorUtility.DisplayDialog("DeVinci Kart", msg, "OK");
             }
             finally
             {
+                moduleActive = false;
+                altCPath = null;
                 EditorUtility.ClearProgressBar();
             }
         }
@@ -489,6 +502,7 @@ namespace DeVinciKart.EditorTools
             if (h.x > HallX0 - 0.5f && h.x < HallX1 + 0.5f && h.z > HallZ0 - 1f && h.z < HallZ1 + 0.5f) return Zone.Hall;
             Vector3 b = bridgeW2L.MultiplyPoint3x4(p);
             if (Mathf.Abs(b.x) < 4f && Mathf.Abs(b.z) < TrenchHalfW + 12f) return Zone.Bridge;
+            if (InModuleCrop(p, 0.5f)) return Zone.Module;
             return Zone.Normal;
         }
 
@@ -509,6 +523,7 @@ namespace DeVinciKart.EditorTools
                 int c1 = Mathf.Min(c0 + chunk, n - 1);
                 for (int i = c0; i < c1; i++)
                 {
+                    if (ZoneAt(path.p[i]) == Zone.Module && ZoneAt(path.p[i + 1]) == Zone.Module) continue;   // City Slicker a déjà sa route
                     float v0 = path.dist[i] / 8f, v1 = path.dist[i + 1] / 8f;
                     mb.Quad(L(i, RoadHalf), L(i + 1, RoadHalf), R(i + 1, RoadHalf), R(i, RoadHalf),
                         new Vector2(0, v0), new Vector2(0, v1), new Vector2(1, v1), new Vector2(1, v0), Vector3.up);
@@ -517,13 +532,28 @@ namespace DeVinciKart.EditorTools
             }
 
             var curbN = new MB(); var curbB = new MB();
-            var barN = new MB(); var barB = new MB(); var skirt = new MB();
+            var barN = new MB(); var barB = new MB(); var skirt = new MB(); var bank = new MB(); var deck = new MB();
             float o1 = RoadHalf + CurbW, o2 = o1 + BarrierT;
+
+            // distance horizontale à une autre portion de route plus basse (passages dessus / dessous)
+            var lowerDist = new float[n];
+            for (int i = 0; i < n; i++)
+            {
+                lowerDist[i] = float.MaxValue;
+                if (path.p[i].y < 1.5f) continue;
+                for (int j = 0; j < n; j += 2)
+                {
+                    if (Mathf.Abs(i - j) < 60 || path.p[j].y > path.p[i].y - 2.5f) continue;
+                    float dx = path.p[j].x - path.p[i].x, dz = path.p[j].z - path.p[i].z;
+                    float d = Mathf.Sqrt(dx * dx + dz * dz);
+                    if (d < lowerDist[i]) lowerDist[i] = d;
+                }
+            }
 
             for (int i = 0; i < n - 1; i++)
             {
                 Zone z0 = ZoneAt(path.p[i]), z1 = ZoneAt(path.p[i + 1]);
-                if (z0 == Zone.Hall || z1 == Zone.Hall) continue;
+                if (z0 == Zone.Hall || z1 == Zone.Hall || z0 == Zone.Module || z1 == Zone.Module) continue;
                 bool bridge = z0 == Zone.Bridge;
                 var curb = bridge ? curbB : curbN;
                 var bar = bridge ? barB : barN;
@@ -538,6 +568,7 @@ namespace DeVinciKart.EditorTools
 
                     curb.Quad(P(i, RoadHalf, 0f), P(i + 1, RoadHalf, 0f), P(i + 1, o1, lip), P(i, o1, lip),
                         new Vector2(0, u0), new Vector2(0, u1), new Vector2(1, u1), new Vector2(1, u0), Vector3.up);
+                    if (InBarrierGap(P(i, o1, 0f)) || InBarrierGap(P(i + 1, o1, 0f))) continue;   // ouverture vers un raccourci
 
                     float yb = -0.35f;
                     bar.Quad(P(i, o1, yb), P(i + 1, o1, yb), P(i + 1, o1, hgt), P(i, o1, hgt),
@@ -547,15 +578,50 @@ namespace DeVinciKart.EditorTools
                     bar.Quad(P(i, o2, yb), P(i + 1, o2, yb), P(i + 1, o2, hgt), P(i, o2, hgt),
                         new Vector2(u0, 0), new Vector2(u1, 0), new Vector2(u1, 1), new Vector2(u0, 1), outward);
 
-                    // talus sous la rampe de la Grande Arche
+                    // sous la route surélevée : tablier de pont au-dessus d'une autre route, talus en herbe dans les Terrasses, sinon mur
                     if (path.p[i].y > 0.1f || path.p[i + 1].y > 0.1f)
                     {
-                        Vector3 a = path.p[i] + path.right[i] * (side * o2); a.y = -0.3f;
-                        Vector3 b = path.p[i + 1] + path.right[i + 1] * (side * o2); b.y = -0.3f;
-                        Vector3 c = P(i + 1, o2, yb), d = P(i, o2, yb);
-                        float ua = path.dist[i] / 4f, ub = path.dist[i + 1] / 4f;
-                        skirt.Quad(a, b, c, d, new Vector2(ua, a.y / 4f), new Vector2(ub, b.y / 4f),
-                            new Vector2(ub, c.y / 4f), new Vector2(ua, d.y / 4f), outward);
+                        float h = Mathf.Max(path.p[i].y, path.p[i + 1].y);
+                        float along = Vector3.Dot(new Vector3(path.p[i].x, 0f, path.p[i].z), AxisEast);
+                        float ld = Mathf.Min(lowerDist[i], lowerDist[i + 1]);
+                        bool terrasses = along < -262f && !ModuleBlocked(path.p[i], 4f);
+                        if (ld < 16f || (terrasses && ld <= o2 + 1.6f * h + 10f))
+                        {
+                            Vector3 a0 = P(i, o2, -1.25f), a1 = P(i + 1, o2, -1.25f), b0 = P(i, 0f, -1.25f), b1 = P(i + 1, 0f, -1.25f);
+                            deck.Quad(a0, a1, P(i + 1, o2, yb), P(i, o2, yb), new Vector2(u0, 0), new Vector2(u1, 0), new Vector2(u1, 0.3f), new Vector2(u0, 0.3f), outward);
+                            deck.Quad(b0, b1, a1, a0, new Vector2(u0, 0), new Vector2(u1, 0), new Vector2(u1, 1), new Vector2(u0, 1), Vector3.down);
+                            // piles sous le tablier, hors de la route du dessous
+                            if (i % 9 == 0)
+                            {
+                                Vector3 pp = path.p[i] + path.right[i] * (side * (o2 - 0.9f)); pp.y = 0f;
+                                float free = float.MaxValue;
+                                for (int jj = 0; jj < n; jj += 2)
+                                {
+                                    if (path.p[jj].y > path.p[i].y - 2.5f) continue;
+                                    float ddx = path.p[jj].x - pp.x, ddz = path.p[jj].z - pp.z;
+                                    free = Mathf.Min(free, Mathf.Sqrt(ddx * ddx + ddz * ddz));
+                                }
+                                if (free > o2 + 1.2f)
+                                    deck.Box(pp + new Vector3(-0.7f, 0f, -0.7f), pp + new Vector3(0.7f, path.p[i].y + RoadLift - 1.25f, 0.7f), 3f, false);
+                            }
+                        }
+                        else if (terrasses)
+                        {
+                            float w0 = o2 + 1.6f * Mathf.Max(0f, path.p[i].y + yb), w1 = o2 + 1.6f * Mathf.Max(0f, path.p[i + 1].y + yb);
+                            Vector3 g0 = path.p[i] + path.right[i] * (side * w0); g0.y = -0.05f;
+                            Vector3 g1 = path.p[i + 1] + path.right[i + 1] * (side * w1); g1.y = -0.05f;
+                            Vector3 c0 = P(i, o2, yb), c1 = P(i + 1, o2, yb);
+                            bank.Quad(c0, c1, g1, g0, new Vector2(c0.x, c0.z) / 6f, new Vector2(c1.x, c1.z) / 6f, new Vector2(g1.x, g1.z) / 6f, new Vector2(g0.x, g0.z) / 6f, outward + Vector3.up);
+                        }
+                        else
+                        {
+                            Vector3 a = path.p[i] + path.right[i] * (side * o2); a.y = -0.3f;
+                            Vector3 b = path.p[i + 1] + path.right[i + 1] * (side * o2); b.y = -0.3f;
+                            Vector3 c = P(i + 1, o2, yb), d = P(i, o2, yb);
+                            float ua = path.dist[i] / 4f, ub = path.dist[i + 1] / 4f;
+                            skirt.Quad(a, b, c, d, new Vector2(ua, a.y / 4f), new Vector2(ub, b.y / 4f),
+                                new Vector2(ub, c.y / 4f), new Vector2(ua, d.y / 4f), outward);
+                        }
                     }
                 }
             }
@@ -564,7 +630,10 @@ namespace DeVinciKart.EditorTools
             MeshGO("Trottoirs_Pont", parent, curbB, "Concrete", true);
             MeshGO("Barrieres", parent, barN, "Barrier", true);
             MeshGO("Parapets_Pont", parent, barB, "Concrete", true);
-            MeshGO("Talus_Rampe_Arche", parent, skirt, "Stone", false);
+            MeshGO("Murs_Route_Surelevee", parent, skirt, "Stone", true);
+            var bankGO = MeshGO("Talus_Herbe", parent, bank, "Grass", true);
+            if (bankGO != null) bankGO.AddComponent<GroundSurface>().speedFactor = 0.6f;
+            MeshGO("Tabliers_Ponts", parent, deck, "Concrete", true);
         }
 
         // ------------------------------------------------------------------ sol / tranchée / pont / parc
@@ -576,17 +645,17 @@ namespace DeVinciKart.EditorTools
             const float big = 4000f;
             float hw = TrenchHalfW, hl = TrenchHalfLen, d = TrenchDepth;
 
-            var ground = new MB();
-            ground.Box(new Vector3(-big, -d - 2f, -big), new Vector3(big, 0f, -hw), 8f, false);
-            ground.Box(new Vector3(-big, -d - 2f, hw), new Vector3(big, 0f, big), 8f, false);
-            ground.Box(new Vector3(-big, -d - 2f, -hw), new Vector3(-hl, 0f, hw), 8f, false);
-            ground.Box(new Vector3(hl, -d - 2f, -hw), new Vector3(big, 0f, hw), 8f, false);
-            var g = MeshGO("Sol", parent, ground, "Grass", true);
-            g.AddComponent<GroundSurface>().speedFactor = 0.6f;   // l'herbe ralentit le kart (KartLab)
+            BuildGround(parent);
 
             var walls = new MB();
-            walls.Box(new Vector3(-hl, -d, -hw - 0.6f), new Vector3(hl, 0.4f, -hw + 0.2f), 4f, false);
-            walls.Box(new Vector3(-hl, -d, hw - 0.2f), new Vector3(hl, 0.4f, hw + 0.6f), 4f, false);
+            const float rw = RoadHalf + CurbW + BarrierT + 0.6f;   // sous la route du pont : le mur s'arrête au niveau du sol (pas de marche)
+            foreach (float zs in new[] { -1f, 1f })
+            {
+                float za = zs < 0 ? -hw - 0.6f : hw - 0.2f, zb = zs < 0 ? -hw + 0.2f : hw + 0.6f;
+                walls.Box(new Vector3(-hl, -d, za), new Vector3(-rw, 0.4f, zb), 4f, false);
+                walls.Box(new Vector3(rw, -d, za), new Vector3(hl, 0.4f, zb), 4f, false);
+                walls.Box(new Vector3(-rw, -d, za), new Vector3(rw, -0.02f, zb), 4f, false);
+            }
             MeshGO("Murs_Tranchee", parent, walls, "Concrete", true);
 
             var floor = new MB();
@@ -904,14 +973,6 @@ namespace DeVinciKart.EditorTools
             // Campus du Parc (nouveau campus)
             PlaceScaled("ESILV_NouveauCampus3D", parent, NewCampusPos, -15f, NewCampusScale).name = "Campus du Parc (nouveau campus)";
 
-            // Statue sur son rond-point
-            Prim(PrimitiveType.Cylinder, "RondPoint_Bordure", parent, StatueCenter + Vector3.up * 0.1f, new Vector3(41f, 0.2f, 41f), "Stone");
-            Prim(PrimitiveType.Cylinder, "RondPoint_Pelouse", parent, StatueCenter + Vector3.up * 0.25f, new Vector3(39f, 0.1f, 39f), "Grass");
-            Prim(PrimitiveType.Cylinder, "Piedestal", parent, StatueCenter + Vector3.up * 2.3f, new Vector3(7f, 2f, 7f), "Stone");
-            Prim(PrimitiveType.Cylinder, "Piedestal_Haut", parent, StatueCenter + Vector3.up * 4.45f, new Vector3(8f, 0.15f, 8f), "Concrete");
-            Vector3 toStart = PoleDoor - StatueCenter;
-            PlaceFit("StatueAnge", parent, StatueCenter + Vector3.up * 4.6f, Mathf.Atan2(toStart.x, toStart.z) * Mathf.Rad2Deg, 11f).name = "Statue";
-
             // Le Pouce, place Carpeaux
             Prim(PrimitiveType.Cube, "Pouce_Socle", parent, PoucePos + Vector3.up * 0.75f, new Vector3(18f, 1.5f, 18f), "Concrete");
             PlaceFit("LePouceModele3d", parent, PoucePos + Vector3.up * 1.5f, 200f, PouceHeight).name = "Le Pouce (géant)";
@@ -949,13 +1010,14 @@ namespace DeVinciKart.EditorTools
             {
                 int i = path.Nearest(spot);
                 Vector3 f = path.fwd[i]; f.y = 0; f.Normalize();
+                Vector3 c = CenterOnModuleRoad(path.p[i], path.right[i]);
                 foreach (float off in new[] { -4.5f, -1.5f, 1.5f, 4.5f })
                 {
                     var prefab = KLPrefab(kinds[k % kinds.Length]);
                     if (prefab == null) return;
                     var box = (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent);
                     box.name = $"BoiteObjet_{k:00}";
-                    box.transform.SetPositionAndRotation(path.p[i] + path.right[i] * off + Vector3.up * (RoadLift + 0.1f), Quaternion.LookRotation(f));
+                    box.transform.SetPositionAndRotation(c + path.right[i] * off + Vector3.up * (RoadLift + 0.1f), Quaternion.LookRotation(f));
                     var zone = box.GetComponent<TrackZone>();
                     if (zone != null) zone.fixedItem = ItemKind.None;   // None = objet aléatoire
                     k++;
@@ -968,15 +1030,18 @@ namespace DeVinciKart.EditorTools
         {
             var parent = new GameObject("Boosts").transform;
             parent.SetParent(root, false);
-            var prefab = KLPrefab("BoostStrip");
-            if (prefab == null) return;
             int k = 0;
             foreach (var spot in BoostSpots())
             {
                 int i = path.Nearest(spot);
-                var strip = (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent);
-                strip.name = $"Boost_{k++}";
-                strip.transform.SetPositionAndRotation(path.p[i] + Vector3.up * (RoadLift + 0.02f), Quaternion.LookRotation(path.fwd[i], Vector3.up));
+                if (InModuleCrop(spot, 0f))
+                {
+                    // pile sur la plaque de boost d'origine de City Slicker (on garde son visuel)
+                    Vector3 q = spot;
+                    if (ModuleSurface(spot, spot.y, 2f, out float y)) q.y = y;
+                    BoostAt(q, path.fwd[i], parent, $"Boost_{k++}", true);
+                }
+                else BoostAt(path.p[i], path.fwd[i], parent, $"Boost_{k++}", true);
             }
         }
 
@@ -1005,6 +1070,7 @@ namespace DeVinciKart.EditorTools
             int k = 0;
             for (int i = 80; i < path.Count - 20; i += 120)
             {
+                for (int t = 0; t < 30 && NearOtherPart(path, i); t++) i += 4;
                 var cp = (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent);
                 cp.name = $"Checkpoint_{k++:00}";
                 Vector3 f = path.fwd[i]; f.y = 0; f.Normalize();
@@ -1037,7 +1103,7 @@ namespace DeVinciKart.EditorTools
                 rec.offTrackDelay = 2.5f;   // le saut sous la Grande Arche dure plus d'1 s en l'air
             }
             var motor = kart.GetComponent<KartMotor>();
-            if (motor != null) motor.groundMask = 1;   // couche Default : route, sol, tremplin
+            if (motor != null) { motor.groundMask = 1; motor.fallResetY = -30f; }   // couche Default ; le parc du quartier est à -8 m
             Selection.activeGameObject = kart;
         }
 
@@ -1059,12 +1125,12 @@ namespace DeVinciKart.EditorTools
             var urpLit = Shader.Find("Universal Render Pipeline/Lit");
             if (urpLit == null) return;
             int converted = 0;
-            foreach (string guid in AssetDatabase.FindAssets("t:Material", new[] { "Assets/KartLab", "Assets/ThirdParty", "Assets/BEDRILL" }))
+            foreach (string guid in AssetDatabase.FindAssets("t:Material", new[] { "Assets/KartLab", "Assets/ThirdParty", "Assets/BEDRILL", "Assets/FastMesh" }))
             {
                 var mat = AssetDatabase.LoadAssetAtPath<Material>(AssetDatabase.GUIDToAssetPath(guid));
                 if (mat == null || mat.shader == null) continue;
                 string sn = mat.shader.name;
-                if (sn != "Standard" && sn != "Standard (Specular setup)" && !sn.StartsWith("Legacy Shaders/")) continue;
+                if (sn != "Standard" && sn != "Standard (Specular setup)" && !sn.StartsWith("Legacy Shaders/") && !sn.StartsWith("Unlit/") && !sn.StartsWith("Hidden/InternalErrorShader")) continue;
                 Color col = mat.HasProperty("_Color") ? mat.GetColor("_Color") : Color.white;
                 Texture tex = mat.HasProperty("_MainTex") ? mat.GetTexture("_MainTex") : null;
                 Vector2 ts = mat.HasProperty("_MainTex") ? mat.GetTextureScale("_MainTex") : Vector2.one;
@@ -1239,7 +1305,7 @@ namespace DeVinciKart.EditorTools
                 if (new Vector2(x, z).magnitude < 95f) return true;                             // Grande Arche
                 Vector3 b = bridgeW2L.MultiplyPoint3x4(p);
                 if (Mathf.Abs(b.x) < TrenchHalfLen + 10f && Mathf.Abs(b.z) < TrenchHalfW + 6f) return true; // tranchée
-                if (new Vector2(x - StatueCenter.x, z - StatueCenter.z).magnitude < 26f) return true;
+                if (ModuleBlocked(p, 10f) || ViaductBlocked(p)) return true;                    // quartier City Slicker, viaduc
                 if (new Vector2(x - finishP.x, z - finishP.z).magnitude < 50f) return true;    // pizzeria / kebab / podium
                 if (new Vector2(x - PoucePos.x, z - PoucePos.z).magnitude < 20f) return true;
                 Vector3 lk = Quaternion.Euler(0, -20f, 0) * (p - (ParkCenter + new Vector3(-5f, 0, 15f)));
@@ -1276,13 +1342,6 @@ namespace DeVinciKart.EditorTools
                 if (Blocked(p.x, p.z)) continue;
                 Tree(p, R(3f, 5f), R(3f, 5f));
                 placed++;
-            }
-            for (int k = 0; k < 6; k++)
-            {
-                float ang = k * Mathf.PI / 3f;
-                var bp = StatueCenter + new Vector3(Mathf.Cos(ang), 0, Mathf.Sin(ang)) * 13f;
-                AddCombined(trees, "Bark", cylMesh, Matrix4x4.TRS(bp + Vector3.up * 2f, Quaternion.identity, new Vector3(0.35f, 2f, 0.35f)));
-                AddCombined(trees, "Leaves2", sphereMesh, Matrix4x4.TRS(bp + Vector3.up * 5f, Quaternion.identity, Vector3.one * 3.5f));
             }
             FlushCombined(trees, "Arbres", parent);
 

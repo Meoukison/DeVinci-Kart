@@ -19,11 +19,12 @@ namespace DeVinciKart.EditorTools
     public static partial class CampusTrackGenerator
     {
         const string CSModelPath = "Assets/CitySlicker/scene.gltf";
+        static string csMeshFolder = GenFolder + "/MeshesCitySlicker";   // la piste 1 range ses copies ailleurs
         const string CSCredit = "\"city slicker\" par amogusstrikesback2 (sketchfab.com) - CC-BY-4.0";
 
         // ce que l'on retire / ne rend pas solide dans le niveau d'origine (noms de matériaux glTF)
         static readonly string[] CSHidden = { "statue_garfiel", "m_puzzle", "m_halopuzzle" };
-        static readonly string[] CSNoCollide = { "glow", "shadow", "noisepattern" };
+        static readonly string[] CSNoCollide = { "glow", "shadow", "noisepattern", "boost" };   // flèches 3D des plaques de boost : décor
         static readonly string[] CSCutMats = { "concret_block", "beton1" };
         // blocs de béton qui fermaient le grand pont Ouest (x, z, largeur, profondeur)
         static readonly Rect[] CSCut = { new Rect(-137f, -80f, 5f, 24f), new Rect(-44f, -80f, 10f, 24f), new Rect(-137f, -81f, 7f, 4f) };
@@ -215,7 +216,7 @@ namespace DeVinciKart.EditorTools
                     vis.subMeshCount = subs.Count;
                     for (int s = 0; s < subs.Count; s++) vis.SetTriangles(subs[s], s, false);
                     vis.RecalculateBounds();
-                    AssetDatabase.CreateAsset(vis, $"{GenFolder}/MeshesCitySlicker/{SafeName(tr.name)}_{saved++}.asset");
+                    AssetDatabase.CreateAsset(vis, $"{csMeshFolder}/{SafeName(tr.name)}_{saved++}.asset");
                     mf.sharedMesh = vis;
                     mr.sharedMaterials = keepMats.ToArray();
                 }
@@ -228,7 +229,7 @@ namespace DeVinciKart.EditorTools
                     col.vertices = verts;
                     col.triangles = colTris.ToArray();
                     col.RecalculateBounds();
-                    AssetDatabase.CreateAsset(col, $"{GenFolder}/MeshesCitySlicker/{SafeName(tr.name)}_{saved++}_col.asset");
+                    AssetDatabase.CreateAsset(col, $"{csMeshFolder}/{SafeName(tr.name)}_{saved++}_col.asset");
                 }
                 var mc = mf.gameObject.GetComponent<MeshCollider>();
                 if (mc == null) mc = mf.gameObject.AddComponent<MeshCollider>();

@@ -8,6 +8,11 @@ namespace KartLab
         public Vector3[] points;
         public bool closed=true;
         public float roadHalfWidth=4.5f;
+        [Tooltip("Itinéraire secondaire (raccourci, variante) : accepté par KartRecovery, ignoré par le pilote automatique.")]
+        public bool alternative;
+        public static readonly System.Collections.Generic.List<TrackRoute> All=new System.Collections.Generic.List<TrackRoute>();
+        void OnEnable(){if(!All.Contains(this))All.Add(this);}
+        void OnDisable(){All.Remove(this);}
         public bool ClosestPose(Vector3 position,out Pose pose,out float distance)
         {
             pose=default;distance=float.PositiveInfinity;
