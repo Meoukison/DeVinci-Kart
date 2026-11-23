@@ -47,6 +47,14 @@ dernière projection valide au centre de la piste et dans le sens de la course.
 Après le retour, la peinture pulse deux fois en ambre sur écran (une fois en VR)
 et le tableau de bord indique **BACK ON TRACK**.
 
+## Bandes de turbo de City Slicker
+
+Le modèle d'origine contient des plaques et des flèches décoratives équipées
+de colliders solides. Le kart équipé ignore uniquement ces contacts. Les
+colliders de la route et des glissières ainsi que les zones de turbo restent
+utilisables. Les passages de référence sous le pont et avant la montée
+passent dans les deux sens. Les deux zones déclenchent le turbo en marche avant.
+
 ## Validation
 
 Vérifié dans Unity sur City Slicker avec le kart déjà en place. La ligne droite de test confirme

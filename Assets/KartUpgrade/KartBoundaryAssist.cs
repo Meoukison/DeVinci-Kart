@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using KartLab;
 using UnityEngine;
 
@@ -11,6 +12,7 @@ namespace DeVinciKart.Upgrade
     {
         private const float Skin = 0.035f;
         private readonly RaycastHit[] hits = new RaycastHit[24];
+        private readonly List<MeshCollider> nonSolidBoostDecor = new();
         private KartMotor motor;
         private BoxCollider chassis;
         private KartRecovery recovery;
@@ -32,7 +34,34 @@ namespace DeVinciKart.Upgrade
                 originalStuckDelay = recovery.stuckEdgeDelay;
                 recovery.offTrackDelay = recovery.stuckEdgeDelay = float.PositiveInfinity;
             }
+            if (useCitySurfaceChecks && chassis) IgnoreBoostDecor();
             active = true;
+        }
+
+        private void IgnoreBoostDecor()
+        {
+            // The imported City Slicker model makes the thin plates and floating
+            // arrows solid. The gameplay trigger is a separate BoostStrip object.
+            foreach (var mesh in FindObjectsByType<MeshCollider>())
+            {
+                if (mesh.gameObject.scene != gameObject.scene || !mesh.enabled || mesh.isTrigger
+                    || mesh.attachedRigidbody || !mesh.name.EndsWith("_Boost_0", StringComparison.Ordinal)
+                    || !IsImportedBoostPad(mesh.transform) || Physics.GetIgnoreCollision(chassis, mesh))
+                    continue;
+
+                Physics.IgnoreCollision(chassis, mesh);
+                nonSolidBoostDecor.Add(mesh);
+            }
+        }
+
+        private static bool IsImportedBoostPad(Transform visual)
+        {
+            for (var parent = visual.parent; parent; parent = parent.parent)
+            {
+                if (parent.name == "BoostPad" || parent.name.StartsWith("BoostPad.", StringComparison.Ordinal))
+                    return true;
+            }
+            return false;
         }
 
         private void UpdateCityRecovery(Rigidbody body)
@@ -142,6 +171,13 @@ namespace DeVinciKart.Upgrade
                 recovery.offTrackDelay = originalDelay;
                 recovery.stuckEdgeDelay = originalStuckDelay;
             }
+            foreach (var mesh in nonSolidBoostDecor)
+            {
+                if (chassis && mesh && chassis.enabled && mesh.enabled
+                    && chassis.gameObject.activeInHierarchy && mesh.gameObject.activeInHierarchy)
+                    Physics.IgnoreCollision(chassis, mesh, false);
+            }
+            nonSolidBoostDecor.Clear();
             active = false;
         }
     }
