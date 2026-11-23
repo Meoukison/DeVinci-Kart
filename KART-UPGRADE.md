@@ -27,6 +27,20 @@ copier le composant **Kart Upgrade** du prefab
 `Assets/KartUpgrade/PlayerKart_DeVinci_Upgrade.prefab` et le coller comme
 nouveau composant sur le kart joueur de la scène.
 
+## Glissières et retour sur la piste
+
+Le kart vérifie le prochain déplacement de sa carrosserie devant les glissières
+et clôtures de City Slicker, y compris côté dos des triangles. Si une glissière
+est détectée, la vitesse vers elle est freinée et la composante parallèle est
+conservée. Un obstacle sans collider doit être corrigé dans le circuit.
+
+Le retour automatique au sol se déclenche après environ 0,6 s hors de la zone
+de course. Le délai prévu par la scène s'applique en vol. Pour revenir
+manuellement, maintenir **R** environ une seconde. Le kart est remis sur la
+dernière projection valide au centre de la piste et dans le sens de la course.
+Après le retour, la peinture pulse deux fois en ambre sur écran (une fois en VR)
+et le tableau de bord indique **BACK ON TRACK**.
+
 ## Validation
 
 Vérifié dans Unity sur City Slicker avec le kart déjà en place. Sur une ligne
@@ -34,3 +48,7 @@ droite de test, le nouveau réglage atteint 20 m/s, le turbo atteint 29 m/s et
 le freinage fonctionne. Le moteur se coupe pendant la pause et le replacement,
 et le basculement restaure le son et la peinture d’origine. La vitesse en
 course complète et le ressenti avec le casque restent à valider.
+
+Retour au centre et glissière contrôlés en Play Mode sur City Slicker. Sur la
+glissière à une seule face du banc d'essai, le kart d'origine traverse tandis que
+le kart équipé s'arrête avant le bord, même en turbo.

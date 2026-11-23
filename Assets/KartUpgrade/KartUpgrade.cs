@@ -25,9 +25,17 @@ namespace DeVinciKart.Upgrade
         [SerializeField] private Material originalPaint;
         [SerializeField] private Material newPaint;
 
+        private static readonly int BaseColor = Shader.PropertyToID("_BaseColor");
+        private static readonly Color ReturnTint = new(1f, 0.66f, 0.27f);
+
         private readonly Dictionary<Renderer, Material[]> originalMaterials = new();
         private readonly List<AudioSource> mutedEngineSources = new();
         private KartMotor motor;
+        private KartBoundaryAssist boundaryAssist;
+        private Material livePaint;
+        private Color paintColor;
+        private bool wasResetting;
+        private float returnFlashStart = float.NegativeInfinity;
         private AudioSource idle, driving;
         private float originalMaxSpeed, originalAcceleration;
         private float torqueEngagement, rpm, load;
@@ -58,9 +66,15 @@ namespace DeVinciKart.Upgrade
             motor.topSpeed = maxSpeed;
             torqueEngagement = rpm = load = 0f;
             applied = true;
+            wasResetting = motor.Resetting;
+            returnFlashStart = float.NegativeInfinity;
+            boundaryAssist = gameObject.AddComponent<KartBoundaryAssist>();
+            boundaryAssist.Initialize(motor);
 
-            if (originalPaint && newPaint)
+            if (originalPaint && newPaint && newPaint.HasProperty(BaseColor))
             {
+                livePaint = new Material(newPaint) { name = newPaint.name };
+                paintColor = livePaint.GetColor(BaseColor);
                 foreach (var renderer in GetComponentsInChildren<MeshRenderer>(true))
                 {
                     var materials = renderer.sharedMaterials;
@@ -68,7 +82,7 @@ namespace DeVinciKart.Upgrade
                     originalMaterials.Add(renderer, (Material[])materials.Clone());
                     for (int index = 0; index < materials.Length; index++)
                     {
-                        if (materials[index] == originalPaint) materials[index] = newPaint;
+                        if (materials[index] == originalPaint) materials[index] = livePaint;
                     }
                     renderer.sharedMaterials = materials;
                 }
@@ -123,6 +137,8 @@ namespace DeVinciKart.Upgrade
 
         private void LateUpdate()
         {
+            if (!applied) return;
+            UpdateReturnFlash();
             if (!idle || !driving) return;
             if (!engineSourcesChecked) MuteOriginalEngine();
 
@@ -141,6 +157,31 @@ namespace DeVinciKart.Upgrade
             driving.pitch = Mathf.Lerp(0.73f, 1.35f, rpm);
             idle.volume = silent ? 0f : engineVolume * (1f - mix) * Mathf.Lerp(0.42f, 0.72f, load);
             driving.volume = silent ? 0f : engineVolume * mix * Mathf.Lerp(0.39f, 1f, load);
+        }
+
+        private void UpdateReturnFlash()
+        {
+            bool resetting = motor.Resetting;
+            if (wasResetting && !resetting)
+            {
+                returnFlashStart = Time.time;
+                motor.Notify("BACK ON TRACK");
+            }
+            wasResetting = resetting;
+            if (!livePaint) return;
+
+            float elapsed = Time.time - returnFlashStart;
+            const float duration = 0.95f;
+            if (resetting || elapsed >= duration)
+            {
+                if (livePaint.GetColor(BaseColor) != paintColor) livePaint.SetColor(BaseColor, paintColor);
+                return;
+            }
+
+            float phase = elapsed / duration;
+            float pulses = motor.input.XRActive ? 1f : 2f;
+            float blend = (0.5f - 0.5f * Mathf.Cos(phase * pulses * 2f * Mathf.PI)) * 0.65f;
+            livePaint.SetColor(BaseColor, Color.Lerp(paintColor, ReturnTint, blend));
         }
 
         private void MuteOriginalEngine()
@@ -178,6 +219,15 @@ namespace DeVinciKart.Upgrade
                 if (entry.Key) entry.Key.sharedMaterials = entry.Value;
             }
             originalMaterials.Clear();
+            if (livePaint) Destroy(livePaint);
+            livePaint = null;
+
+            if (boundaryAssist)
+            {
+                boundaryAssist.enabled = false;
+                Destroy(boundaryAssist);
+                boundaryAssist = null;
+            }
 
             foreach (var source in mutedEngineSources)
             {
