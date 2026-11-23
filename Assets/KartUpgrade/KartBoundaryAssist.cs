@@ -16,7 +16,6 @@ namespace DeVinciKart.Upgrade
         private KartRecovery recovery;
         private const float OutsideGrace = 1f;
         private const float ShoulderMargin = 3f;
-        private const float PavedMargin = 8f;
         private float originalDelay, originalStuckDelay, outsideGroundedTime;
         private bool useCitySurfaceChecks;
         private bool active;
@@ -43,7 +42,7 @@ namespace DeVinciKart.Upgrade
             bool outside = !motor.Resetting && !motor.driveLocked && motor.Grounded && recovery.route
                 && recovery.route.ClosestPose(body.position, out _, out float distance)
                 && distance > recovery.route.roadHalfWidth + ShoulderMargin
-                && (distance > recovery.route.roadHalfWidth + PavedMargin || !TouchesPavement(body));
+                && !TouchesDrivableSurface(body);
 
             outsideGroundedTime = outside ? outsideGroundedTime + Time.fixedDeltaTime : 0f;
             // KartRecovery still owns the saved centreline pose and the actual reset.
@@ -51,14 +50,17 @@ namespace DeVinciKart.Upgrade
             recovery.offTrackDelay = outsideGroundedTime >= OutsideGrace ? OutsideGrace : float.PositiveInfinity;
         }
 
-        private bool TouchesPavement(Rigidbody body)
+        private bool TouchesDrivableSurface(Rigidbody body)
         {
             Vector3 origin = body.position + Vector3.up * 0.44f;
             Vector3 sideways = body.rotation * Vector3.right * 0.45f;
-            return IsPavedAt(origin) || IsPavedAt(origin + sideways) || IsPavedAt(origin - sideways);
+            Vector3 forward = body.rotation * Vector3.forward * 0.55f;
+            // A wheel can be on a ramp while the centre is over the seam between decks.
+            return IsRoadAt(origin) || IsRoadAt(origin + sideways) || IsRoadAt(origin - sideways)
+                || IsRoadAt(origin + forward) || IsRoadAt(origin - forward);
         }
 
-        private bool IsPavedAt(Vector3 origin)
+        private bool IsRoadAt(Vector3 origin)
         {
             if (!Physics.Raycast(origin, Vector3.down, out var hit, 0.86f, motor.groundMask,
                 QueryTriggerInteraction.Ignore) || hit.normal.y < 0.6f) return false;
@@ -66,7 +68,8 @@ namespace DeVinciKart.Upgrade
             string name = hit.collider.name;
             return name.Contains("t_city_asphalt", StringComparison.OrdinalIgnoreCase)
                 || name.Contains("t_city_bike_way", StringComparison.OrdinalIgnoreCase)
-                || name.Contains("t_startLine", StringComparison.OrdinalIgnoreCase);
+                || name.Contains("t_startLine", StringComparison.OrdinalIgnoreCase)
+                || name.StartsWith("Tremplin_Rampe", StringComparison.OrdinalIgnoreCase);
         }
 
         private void FixedUpdate()

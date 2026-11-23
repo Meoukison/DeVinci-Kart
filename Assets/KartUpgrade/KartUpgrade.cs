@@ -10,7 +10,7 @@ namespace DeVinciKart.Upgrade
     public sealed class KartUpgrade : MonoBehaviour
     {
         [Header("Conduite")]
-        [SerializeField, Min(1f)] private float maxSpeed = 23.5f;
+        [SerializeField, Min(1f)] private float maxSpeed = 27f;
         [SerializeField, Min(0.1f)] private float responseSeconds = 0.16f;
         [SerializeField] private AnimationCurve torqueCurve = new(
             new Keyframe(0f, 1.04f), new Keyframe(0.32f, 1.44f),
@@ -39,6 +39,7 @@ namespace DeVinciKart.Upgrade
         private float returnFlashStart = float.NegativeInfinity;
         private AudioSource idle, driving;
         private float originalMaxSpeed, originalAcceleration;
+        private float originalSteerDegrees, originalDriftSteerDegrees, originalBoostMultiplier;
         private float torqueEngagement, rpm, load;
         private bool started, applied, engineSourcesChecked;
 
@@ -64,7 +65,21 @@ namespace DeVinciKart.Upgrade
 
             originalMaxSpeed = motor.topSpeed;
             originalAcceleration = motor.acceleration;
-            motor.topSpeed = motor.input.XRActive ? Mathf.Min(maxSpeed, 20f) : maxSpeed;
+            originalSteerDegrees = motor.steerDegrees;
+            originalDriftSteerDegrees = motor.driftSteerDegrees;
+            originalBoostMultiplier = motor.boostMultiplier;
+            if (motor.input.XRActive)
+            {
+                motor.topSpeed = Mathf.Min(maxSpeed, 20f);
+            }
+            else
+            {
+                motor.topSpeed = maxSpeed;
+                // Keep the low-speed radius while allowing more speed with keyboard steering.
+                motor.steerDegrees = Mathf.Max(originalSteerDegrees, 142f);
+                motor.driftSteerDegrees = Mathf.Max(originalDriftSteerDegrees, 175f);
+                motor.boostMultiplier = Mathf.Min(originalBoostMultiplier, Mathf.Max(1f, 36f / maxSpeed));
+            }
             if (GetComponent<KartView>() is KartView view && view)
             {
                 accelerationView = gameObject.AddComponent<KartAccelerationView>();
@@ -218,6 +233,9 @@ namespace DeVinciKart.Upgrade
             {
                 motor.topSpeed = originalMaxSpeed;
                 motor.acceleration = originalAcceleration;
+                motor.steerDegrees = originalSteerDegrees;
+                motor.driftSteerDegrees = originalDriftSteerDegrees;
+                motor.boostMultiplier = originalBoostMultiplier;
             }
 
             foreach (var entry in originalMaterials)
