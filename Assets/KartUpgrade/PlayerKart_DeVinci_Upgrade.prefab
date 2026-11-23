@@ -1,0 +1,128 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &6317716033222546859
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 4484518149963974604, guid: afaf49d618c4a7b47b0f0a9db80d6816, type: 3}
+      propertyPath: m_Name
+      value: PlayerKart_DeVinci_Upgrade
+      objectReference: {fileID: 0}
+    - target: {fileID: 7302261973516373665, guid: afaf49d618c4a7b47b0f0a9db80d6816, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 24
+      objectReference: {fileID: 0}
+    - target: {fileID: 7302261973516373665, guid: afaf49d618c4a7b47b0f0a9db80d6816, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.27
+      objectReference: {fileID: 0}
+    - target: {fileID: 7302261973516373665, guid: afaf49d618c4a7b47b0f0a9db80d6816, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -24
+      objectReference: {fileID: 0}
+    - target: {fileID: 7302261973516373665, guid: afaf49d618c4a7b47b0f0a9db80d6816, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7302261973516373665, guid: afaf49d618c4a7b47b0f0a9db80d6816, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7302261973516373665, guid: afaf49d618c4a7b47b0f0a9db80d6816, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7302261973516373665, guid: afaf49d618c4a7b47b0f0a9db80d6816, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7302261973516373665, guid: afaf49d618c4a7b47b0f0a9db80d6816, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7302261973516373665, guid: afaf49d618c4a7b47b0f0a9db80d6816, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7302261973516373665, guid: afaf49d618c4a7b47b0f0a9db80d6816, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 4484518149963974604, guid: afaf49d618c4a7b47b0f0a9db80d6816, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 772732223967336610}
+  m_SourcePrefab: {fileID: 100100000, guid: afaf49d618c4a7b47b0f0a9db80d6816, type: 3}
+--- !u!1 &7606927478923203175 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 4484518149963974604, guid: afaf49d618c4a7b47b0f0a9db80d6816, type: 3}
+  m_PrefabInstance: {fileID: 6317716033222546859}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &772732223967336610
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7606927478923203175}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c8f13ba620876475fb753c4447d7e258, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DeVinciKart.Upgrade.KartUpgrade
+  maxSpeed: 20
+  responseSeconds: 0.24
+  torqueCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0.88
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.32
+      value: 1.36
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.68
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 0.48
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  idleRecording: {fileID: 8300000, guid: 6a0e4e2e768bb417f8b72243ca02cc47, type: 3}
+  drivingRecording: {fileID: 8300000, guid: 4e09b955e3670414c87e2b29dd019750, type: 3}
+  engineVolume: 0.24
+  originalPaint: {fileID: 2100000, guid: e8194431adf4a4ed390b4e7f12599185, type: 2}
+  newPaint: {fileID: 2100000, guid: ecdabe5cf26334be5834abd3ad047142, type: 2}

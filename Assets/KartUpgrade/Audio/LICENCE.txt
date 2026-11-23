@@ -1,0 +1,14 @@
+Audio source: “fill kart and go.wav” by Hanbaal
+https://freesound.org/people/Hanbaal/sounds/178662/
+License: CC0 1.0 Universal
+https://creativecommons.org/publicdomain/zero/1.0/
+
+The author recorded a Drift 2 go-kart with a 6.5 HP engine.
+Public high quality preview used as source.
+Conversions: mono PCM 44.1 kHz, high-pass 45 Hz, low-pass 4900 Hz,
+cropping, loop crossfades and peak normalization.
+Ralenti: source 193.30 to 194.55 seconds, 0.16 s crossfade.
+En charge: source 198.15 to 198.83 seconds, 0.11 s crossfade.
+
+The kart mesh and the original paint come from the team's existing project.
+The new material is a locally adjusted color and metallic finish.
