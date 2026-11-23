@@ -10,11 +10,11 @@ namespace DeVinciKart.Upgrade
     public sealed class KartUpgrade : MonoBehaviour
     {
         [Header("Conduite")]
-        [SerializeField, Min(1f)] private float maxSpeed = 20f;
-        [SerializeField, Min(0.1f)] private float responseSeconds = 0.24f;
+        [SerializeField, Min(1f)] private float maxSpeed = 23.5f;
+        [SerializeField, Min(0.1f)] private float responseSeconds = 0.16f;
         [SerializeField] private AnimationCurve torqueCurve = new(
-            new Keyframe(0f, 0.88f), new Keyframe(0.32f, 1.36f),
-            new Keyframe(0.68f, 1f), new Keyframe(1f, 0.48f));
+            new Keyframe(0f, 1.04f), new Keyframe(0.32f, 1.44f),
+            new Keyframe(0.72f, 1.04f), new Keyframe(1f, 0.57f));
 
         [Header("Son moteur")]
         [SerializeField] private AudioClip idleRecording;
@@ -32,6 +32,7 @@ namespace DeVinciKart.Upgrade
         private readonly List<AudioSource> mutedEngineSources = new();
         private KartMotor motor;
         private KartBoundaryAssist boundaryAssist;
+        private KartAccelerationView accelerationView;
         private Material livePaint;
         private Color paintColor;
         private bool wasResetting;
@@ -63,7 +64,12 @@ namespace DeVinciKart.Upgrade
 
             originalMaxSpeed = motor.topSpeed;
             originalAcceleration = motor.acceleration;
-            motor.topSpeed = maxSpeed;
+            motor.topSpeed = motor.input.XRActive ? Mathf.Min(maxSpeed, 20f) : maxSpeed;
+            if (GetComponent<KartView>() is KartView view && view)
+            {
+                accelerationView = gameObject.AddComponent<KartAccelerationView>();
+                accelerationView.Initialize(motor, view);
+            }
             torqueEngagement = rpm = load = 0f;
             applied = true;
             wasResetting = motor.Resetting;
@@ -114,7 +120,7 @@ namespace DeVinciKart.Upgrade
             torqueEngagement = Mathf.MoveTowards(torqueEngagement, 1f, Time.fixedDeltaTime / responseSeconds);
             float normalizedSpeed = Mathf.Clamp01(motor.Speed / motor.EffectiveTopSpeed);
             float traction = Mathf.Clamp(torqueCurve.Evaluate(normalizedSpeed), 0.2f, 2f);
-            motor.acceleration = originalAcceleration * traction * Mathf.Lerp(0.5f, 1f, torqueEngagement);
+            motor.acceleration = originalAcceleration * traction * Mathf.Lerp(0.67f, 1f, torqueEngagement);
         }
 
         private AudioSource CreateLoop(string emitterName, AudioClip recording)
@@ -221,6 +227,13 @@ namespace DeVinciKart.Upgrade
             originalMaterials.Clear();
             if (livePaint) Destroy(livePaint);
             livePaint = null;
+
+            if (accelerationView)
+            {
+                accelerationView.enabled = false;
+                Destroy(accelerationView);
+                accelerationView = null;
+            }
 
             if (boundaryAssist)
             {

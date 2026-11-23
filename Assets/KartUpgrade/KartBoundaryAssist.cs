@@ -14,7 +14,11 @@ namespace DeVinciKart.Upgrade
         private KartMotor motor;
         private BoxCollider chassis;
         private KartRecovery recovery;
-        private float originalDelay;
+        private const float OutsideGrace = 1f;
+        private const float ShoulderMargin = 3f;
+        private const float PavedMargin = 8f;
+        private float originalDelay, originalStuckDelay, outsideGroundedTime;
+        private bool useCitySurfaceChecks;
         private bool active;
 
         internal void Initialize(KartMotor source)
@@ -22,22 +26,56 @@ namespace DeVinciKart.Upgrade
             motor = source;
             chassis = source.GetComponent<BoxCollider>();
             recovery = source.GetComponent<KartRecovery>();
-            if (recovery) originalDelay = recovery.offTrackDelay;
+            useCitySurfaceChecks = source.gameObject.scene.name == "Piste_CitySlicker";
+            if (recovery && useCitySurfaceChecks)
+            {
+                originalDelay = recovery.offTrackDelay;
+                originalStuckDelay = recovery.stuckEdgeDelay;
+                recovery.offTrackDelay = recovery.stuckEdgeDelay = float.PositiveInfinity;
+            }
             active = true;
         }
 
-        private void Update()
+        private void UpdateCityRecovery(Rigidbody body)
         {
-            if (!active || !recovery) return;
-            // Keep the scene's extra airborne time for jumps and ramps.
-            recovery.offTrackDelay = motor.Grounded ? Mathf.Min(originalDelay, 0.6f) : originalDelay;
+            if (!useCitySurfaceChecks || !recovery || !recovery.isActiveAndEnabled) return;
+
+            bool outside = !motor.Resetting && !motor.driveLocked && motor.Grounded && recovery.route
+                && recovery.route.ClosestPose(body.position, out _, out float distance)
+                && distance > recovery.route.roadHalfWidth + ShoulderMargin
+                && (distance > recovery.route.roadHalfWidth + PavedMargin || !TouchesPavement(body));
+
+            outsideGroundedTime = outside ? outsideGroundedTime + Time.fixedDeltaTime : 0f;
+            // KartRecovery still owns the saved centreline pose and the actual reset.
+            // Only let its width timer fire after a continuous, clearly off-course departure.
+            recovery.offTrackDelay = outsideGroundedTime >= OutsideGrace ? OutsideGrace : float.PositiveInfinity;
+        }
+
+        private bool TouchesPavement(Rigidbody body)
+        {
+            Vector3 origin = body.position + Vector3.up * 0.44f;
+            Vector3 sideways = body.rotation * Vector3.right * 0.45f;
+            return IsPavedAt(origin) || IsPavedAt(origin + sideways) || IsPavedAt(origin - sideways);
+        }
+
+        private bool IsPavedAt(Vector3 origin)
+        {
+            if (!Physics.Raycast(origin, Vector3.down, out var hit, 0.86f, motor.groundMask,
+                QueryTriggerInteraction.Ignore) || hit.normal.y < 0.6f) return false;
+
+            string name = hit.collider.name;
+            return name.Contains("t_city_asphalt", StringComparison.OrdinalIgnoreCase)
+                || name.Contains("t_city_bike_way", StringComparison.OrdinalIgnoreCase)
+                || name.Contains("t_startLine", StringComparison.OrdinalIgnoreCase);
         }
 
         private void FixedUpdate()
         {
-            if (!active || !chassis || !motor.Body || motor.Resetting || motor.driveLocked) return;
-
+            if (!active || !motor.Body) return;
             var body = motor.Body;
+            UpdateCityRecovery(body);
+            if (!chassis || motor.Resetting || motor.driveLocked) return;
+
             Vector3 velocity = body.linearVelocity;
             Vector3 horizontal = Vector3.ProjectOnPlane(velocity, Vector3.up);
             float speed = horizontal.magnitude;
@@ -96,7 +134,11 @@ namespace DeVinciKart.Upgrade
 
         private void OnDisable()
         {
-            if (active && recovery) recovery.offTrackDelay = originalDelay;
+            if (active && recovery && useCitySurfaceChecks)
+            {
+                recovery.offTrackDelay = originalDelay;
+                recovery.stuckEdgeDelay = originalStuckDelay;
+            }
             active = false;
         }
     }

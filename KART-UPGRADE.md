@@ -4,10 +4,12 @@ Compatible avec DeVinci Kart sous Unity 6000.6.3f1 (URP). Le dossier
 `Assets/KartUpgrade` contient la variante de prefab, le composant de réglage
 ainsi que les sons et le matériau de carrosserie.
 
-- Vitesse maximale sur ligne droite hors boost : 20 m/s (72 km/h) sur écran,
-  contre 18 m/s avant. Le coefficient VR reste à 0,72.
+- Vitesse maximale sur ligne droite hors boost : 23,5 m/s (84,6 km/h) sur écran.
+  Le réglage dans le casque reste limité à 14,4 m/s.
 - Accélération progressive au départ, poussée plus forte à mi-vitesse et
-  atténuée près de la vitesse limite.
+  atténuée près de la vitesse limite. Sur écran, la caméra recule légèrement
+  et élargit le champ pendant une accélération mesurée. Elle revient ensuite à
+  son cadrage normal.
 - Son de moteur issu d’un enregistrement réel, avec deux boucles pour le ralenti
   et la montée en régime. La licence CC0 est dans `Assets/KartUpgrade/Audio`.
 - Peinture orange cuivrée sur la carrosserie existante, avec le volant DeVinci.
@@ -34,21 +36,25 @@ et clôtures de City Slicker, y compris côté dos des triangles. Si une glissi�
 est détectée, la vitesse vers elle est freinée et la composante parallèle est
 conservée. Un obstacle sans collider doit être corrigé dans le circuit.
 
-Le retour automatique au sol se déclenche après environ 0,6 s hors de la zone
-de course. Le délai prévu par la scène s'applique en vol. Pour revenir
-manuellement, maintenir **R** environ une seconde. Le kart est remis sur la
+Sur City Slicker, le retour automatique se déclenche après environ une seconde
+au sol et nettement hors de la zone de course. Le bitume près des bords et les
+sauts bénéficient d'une marge. La limite de chute de la scène s'applique toujours.
+Pour revenir manuellement, maintenir **R** environ une seconde. Le kart est remis sur la
 dernière projection valide au centre de la piste et dans le sens de la course.
 Après le retour, la peinture pulse deux fois en ambre sur écran (une fois en VR)
 et le tableau de bord indique **BACK ON TRACK**.
 
 ## Validation
 
-Vérifié dans Unity sur City Slicker avec le kart déjà en place. Sur une ligne
-droite de test, le nouveau réglage atteint 20 m/s, le turbo atteint 29 m/s et
-le freinage fonctionne. Le moteur se coupe pendant la pause et le replacement,
+Vérifié dans Unity sur City Slicker avec le kart déjà en place. La ligne droite de test confirme
+une vitesse de 84,6 km/h ainsi que l’élargissement bref du champ à l’accélération. Le moteur se coupe pendant la pause et le replacement,
 et le basculement restaure le son et la peinture d’origine. La vitesse en
 course complète et le ressenti avec le casque restent à valider.
 
 Retour au centre et glissière contrôlés en Play Mode sur City Slicker. Sur la
 glissière à une seule face du banc d'essai, le kart d'origine traverse tandis que
 le kart équipé s'arrête avant le bord, même en turbo.
+
+Une section goudronnée à 17,1 m du centre confirme que la conduite continue
+au-delà de l'ancienne limite de 11 m. Une sortie réelle déclenche le retour en
+environ une seconde une fois au sol.
