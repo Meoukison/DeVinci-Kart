@@ -50,8 +50,12 @@ namespace DeVinciKart
 
         IEnumerator Countdown()
         {
-            yield return new WaitForSeconds(1f);
-            skills.BeginCountdown();
+            while (RaceIntro.Active) yield return null;           // la cinématique lance elle-même le compte à rebours
+            if (!skills.CountingDown)
+            {
+                yield return new WaitForSeconds(1f);
+                skills.BeginCountdown();
+            }
             waitingCountdown = true;
         }
 
@@ -59,7 +63,7 @@ namespace DeVinciKart
         {
             Racing = true;
             raceStart = lapStart = Time.time;
-            Show("GO !", 1.2f);
+            if (!KartRaceSkills.CustomCountdownUI) Show("GO !", 1.2f);
         }
 
         void Show(string text, float seconds) { message = text; messageUntil = Time.time + seconds; }
@@ -133,6 +137,7 @@ namespace DeVinciKart
 
         void OnGUI()
         {
+            if (KartRaceSkills.CinematicActive) return;
             if (big == null)
             {
                 big = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };

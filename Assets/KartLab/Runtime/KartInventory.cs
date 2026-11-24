@@ -12,6 +12,11 @@ namespace KartLab
         public ItemKind Held { get; private set; }
         public bool Rolling { get; private set; }
         public float useCooldown = .25f;
+        [Tooltip("Durée de la roulette d'objets (s).")]
+        public float rollDuration = .65f;
+        public float RollStartTime { get; private set; }
+        /// <summary>Objet sur lequel la roulette va s'arrêter.</summary>
+        public ItemKind Pending => pending;
         public int racePosition=1, racerCount=1;
         public bool useRankWeights;
         public void SetRacePosition(int position,int total){racerCount=Mathf.Max(1,total);racePosition=Mathf.Clamp(position,1,racerCount);useRankWeights=racerCount>1;}
@@ -21,12 +26,23 @@ namespace KartLab
         ItemKind pending;
         readonly Queue<GameObject> traps = new();
         KartMotor motor;
-        void Awake() => motor = GetComponent<KartMotor>();
+        void Awake()
+        {
+            motor = GetComponent<KartMotor>();
+            // Images perso : Resources/ItemIcons/Mushroom.png, Star.png, GreenShell.png, Banana.png, IceFlower.png
+            for (int k = 1; k <= 5; k++)
+            {
+                var t = Resources.Load<Texture2D>("ItemIcons/" + (ItemKind)k);
+                if (!t) continue;
+                if (icons == null || icons.Length < 6) { var a = new Texture2D[6]; if (icons != null) System.Array.Copy(icons, a, icons.Length); icons = a; }
+                icons[k] = t;
+            }
+        }
         public bool Pickup(ItemKind kind = ItemKind.None)
         {
             if (Held != ItemKind.None || Rolling) return false;
             pending = kind == ItemKind.None ? RollItem() : kind;
-            Rolling = true; Invoke(nameof(FinishRoll), .65f); motor?.Notify("ITEM COLLECTED"); return true;
+            Rolling = true; RollStartTime = Time.time; Invoke(nameof(FinishRoll), rollDuration); motor?.Notify("ITEM COLLECTED"); return true;
         }
         void FinishRoll() { Held = pending; Charges=Held==ItemKind.IceFlower?3:1; Rolling = false; motor?.Notify(Name(Held) + " READY"); }
         public static string Name(ItemKind kind) => kind switch

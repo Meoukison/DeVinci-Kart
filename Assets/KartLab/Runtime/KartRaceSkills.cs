@@ -10,6 +10,24 @@ namespace KartLab
         public bool slipstreamEnabled=true;
         public float draftDistance=14, draftChargeTime=1.8f;
         public bool CountingDown {get;private set;}
+        /// <summary>Cinématique d'intro en cours (HUD masqué, Lakitu attend).</summary>
+        public static bool CinematicActive;
+        /// <summary>Le départ est géré par la cinématique : Entrée ne lance pas le compte à rebours.</summary>
+        public static bool StartBlocked;
+        /// <summary>Le compte à rebours est dessiné par un autre script (gros chiffres stylisés) : le HUD n'affiche plus le sien.</summary>
+        public static bool CustomCountdownUI;
+        public enum StartResult { None, Normal, Rocket, Stalled }
+        [Header("Départ turbo : appuyer sur l'accélérateur quand le 2 apparaît")]
+        [Tooltip("Secondes avant le GO où la fenêtre du départ turbo s'ouvre (2 = pile quand le « 2 » s'affiche).")]
+        public float rocketWindowOpen = 2.05f;
+        [Tooltip("Secondes avant le GO où la fenêtre se ferme.")]
+        public float rocketWindowClose = 1.45f;
+        [Tooltip("Accélérer trop tôt (pendant le 3) : le moteur cale pendant cette durée.")]
+        public float stallDuration = 1.3f;
+        public StartResult LastStart { get; private set; }
+        public float LastStartTime { get; private set; } = -99f;
+        public bool Stalled => Time.time < stallUntil;
+        float stallUntil;
         public string CountdownLabel => CountingDown?Mathf.CeilToInt(Mathf.Max(0,startAt-Time.time)).ToString():"GO";
         public float DraftCharge {get;private set;}
         public bool TrickArmed {get;private set;}
@@ -19,14 +37,15 @@ namespace KartLab
         bool oldThrottle,oldSkill,wasGrounded;
         KartMotor[] rivals=System.Array.Empty<KartMotor>();float refreshAt;
         public void BeginCountdown()
-        {if(motor.Resetting)return;CountingDown=true;startAt=Time.time+3;throttleAt=-1;oldThrottle=motor.input.Current.throttle>.5f;motor.driveLocked=true;motor.Notify("START IN 3");}
+        {if(motor.Resetting)return;CountingDown=true;startAt=Time.time+3;oldThrottle=motor.input.Current.throttle>.5f;throttleAt=oldThrottle?Time.time:-1;stallUntil=0;motor.driveLocked=true;motor.Notify("START IN 3");}
         public void CancelCountdown(){CountingDown=false;motor.driveLocked=false;}
         void Update()
         {
             if(Time.timeScale==0||!motor.input)return;
             var i=motor.input.Current;
-            if(!motor.input.useExternalInput&&!motor.input.XRActive&&Keyboard.current!=null&&Keyboard.current.enterKey.wasPressedThisFrame&&!CountingDown)BeginCountdown();
-            if(motor.Resetting){CancelCountdown();TrickArmed=false;airTime=0;DraftCharge=0;wasGrounded=false;return;}
+            if(!motor.input.useExternalInput&&!motor.input.XRActive&&Keyboard.current!=null&&Keyboard.current.enterKey.wasPressedThisFrame&&!CountingDown&&!StartBlocked)BeginCountdown();
+            if(stallUntil>0&&Time.time>=stallUntil){stallUntil=0;if(!CountingDown)motor.driveLocked=false;}
+            if(motor.Resetting){stallUntil=0;CancelCountdown();TrickArmed=false;airTime=0;DraftCharge=0;wasGrounded=false;return;}
             if(CountingDown)
             {
                 bool throttle=i.throttle>.5f;
@@ -34,7 +53,13 @@ namespace KartLab
                 if(!throttle)throttleAt=-1;
                 oldThrottle=throttle;
                 if(Time.time>=startAt)
-                {CancelCountdown();if(throttleAt>=startAt-.8f&&throttleAt<=startAt-.15f&&throttle){RocketStarts++;motor.ApplyBoost(1.4f);motor.Notify("ROCKET START");}else motor.Notify(throttleAt>0&&throttleAt<startAt-.8f?"EARLY THROTTLE / NORMAL START":"GO");}
+                {
+                    CancelCountdown();LastStartTime=Time.time;
+                    bool held=throttle&&throttleAt>0;
+                    if(held&&throttleAt>=startAt-rocketWindowOpen&&throttleAt<=startAt-rocketWindowClose){RocketStarts++;LastStart=StartResult.Rocket;motor.ApplyBoost(1.6f);motor.Notify("ROCKET START");}
+                    else if(held&&throttleAt<startAt-rocketWindowOpen){LastStart=StartResult.Stalled;stallUntil=Time.time+stallDuration;motor.driveLocked=true;motor.Notify("BAD START");}
+                    else{LastStart=StartResult.Normal;motor.Notify("GO");}
+                }
             }
             if(!motor.Grounded){airTime+=Time.deltaTime;if(i.skill&&!oldSkill&&airTime>.08f&&Time.time>lastTrick+.8f){TrickArmed=true;motor.Notify("TRICK READY");}}
             if(motor.Grounded&&!wasGrounded)

@@ -11,6 +11,13 @@ namespace KartLab
         public AudioClip pickupSound, hitSound, boostSound;
         public AudioSource audioSource;
         public string CourseName = "APEX / KART CLUB";
+        [Header("Encadrés à l'écran (seul celui des objets est affiché par défaut)")]
+        public bool showCourseCard, showSpeedCard, showControlsCard;
+        [Tooltip("Petit son à la prise d'une boîte / objet prêt (désactivé quand la roulette a son propre son).")]
+        public bool itemBoxSounds = true;
+        [Tooltip("Encadré « TAKE THE WHEEL » au début.")]
+        public bool showStartHint;
+        bool wasRolling; float landedAt = -9f;
         float eventUntil;
         string message = "";
         GUIStyle title, small, number, accent, tiny, centered, itemTitle;
@@ -23,7 +30,8 @@ namespace KartLab
         void OnFeedback(string text)
         {
             message = text; eventUntil = Time.time + 1.65f;
-            if (audioSource && text!="DRIFT")
+            bool itemSound = text == "ITEM COLLECTED" || (text.EndsWith(" READY") && text != "TRICK READY");
+            if (audioSource && text!="DRIFT" && (itemBoxSounds || !itemSound))
             {
                 audioSource.pitch=text.StartsWith("DRIFT CHARGE")?1+(motor.DriftTier*.22f):1;
                 var clip = text.Contains("HIT") || text.Contains("WALL") ? hitSound : text.Contains("TURBO") || text.Contains("MUSHROOM") ? boostSound : pickupSound;
@@ -86,31 +94,78 @@ namespace KartLab
             if(GUI.Button(new Rect(865,y+379,95,28),"CREDITS"))Application.OpenURL(System.IO.Path.Combine(Application.streamingAssetsPath,"KartLab-Credits.txt"));
         }
 
+        /// <summary>Case d'objet : roulette qui défile de haut en bas, ralentit puis s'arrête sur l'objet avec un petit rebond.</summary>
+        void ItemSlot(KartInventory inv,Rect slot)
+        {
+            Card(slot,new Color(.14f,.23f,.31f,1));
+            if(wasRolling&&!inv.Rolling)landedAt=Time.time;
+            wasRolling=inv.Rolling;
+            if(inv.Rolling)
+            {
+                float dur=Mathf.Max(.05f,inv.rollDuration);
+                float u=Mathf.Clamp01((Time.time-inv.RollStartTime)/dur);
+                int total=Mathf.Max(6,Mathf.RoundToInt(dur*9f));          // nombre d'objets qui défilent
+                float p=total*(1f-Mathf.Pow(1f-u,3f));                       // rapide au début, ralentit à la fin
+                int pend=Mathf.Clamp((int)inv.Pending,1,5);
+                float cell=slot.height-6;
+                GUI.BeginGroup(new Rect(slot.x+3,slot.y+3,slot.width-6,slot.height-6));
+                int i0=Mathf.FloorToInt(p);
+                float speed=total*3f*Mathf.Pow(1f-u,2f)/dur;                  // objets / seconde
+                for(int i=i0-1;i<=i0+2;i++)
+                {
+                    int kind=1+(((pend-1-total+i)%5)+5)%5;
+                    float y=(p-i)*cell;
+                    var ic=inv.Icon((ItemKind)kind);
+                    if(!ic)continue;
+                    float stretch=1f+Mathf.Clamp01(speed/25f)*.25f;              // léger flou de vitesse
+                    var r=new Rect(4,y-(cell*stretch-cell)*.5f,cell-8,cell*stretch);
+                    GUI.color=new Color(1,1,1,Mathf.Lerp(1f,.75f,Mathf.Clamp01(speed/25f)));
+                    GUI.DrawTexture(r,ic,ScaleMode.StretchToFill,true);
+                }
+                GUI.color=Color.white;
+                GUI.EndGroup();
+                // reflets haut/bas comme une fenêtre de machine à sous
+                Card(new Rect(slot.x,slot.y,slot.width,10),new Color(.05f,.1f,.15f,.65f));
+                Card(new Rect(slot.x,slot.yMax-10,slot.width,10),new Color(.05f,.1f,.15f,.65f));
+                return;
+            }
+            var icon=inv.Icon(inv.Held);
+            if(icon)
+            {
+                float k=Mathf.Clamp01((Time.time-landedAt)/.28f);
+                float s=1f+.35f*Mathf.Sin(k*Mathf.PI)*(1f-k*.5f);              // petit « pop » à l'arrivée
+                float w=(slot.width-2)*s,h=(slot.height-2)*s;
+                GUI.DrawTexture(new Rect(slot.center.x-w*.5f,slot.center.y-h*.5f,w,h),icon,ScaleMode.ScaleToFit,true);
+            }
+            else GUI.Label(new Rect(slot.x+21,slot.y+24,55,45),"?",centered);
+        }
+
         void OnGUI()
         {
-            if (!motor || motor.input.XRActive) return;
+            if (!motor || motor.input.XRActive || KartRaceSkills.CinematicActive) return;
             if (title == null) Styles();
             float scale = Screen.width / 1440f;
             GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(scale,scale,1));
             float h = Screen.height / scale;
             SpeedLines(h);
-            Card(new Rect(28,26,300,76),Dark);
-            GUI.Label(new Rect(46,34,265,30),CourseName,title);
-            var recovery=motor.GetComponent<KartRecovery>();
-            GUI.Label(new Rect(47,70,265,23),recovery&&recovery.enabled&&recovery.route?"SUNSET CIRCUIT   /   AUTO RETURN ON":"SUNSET CIRCUIT   /   PRACTICE",tiny);
-            if(kartView.thirdPerson){
-            Card(new Rect(28,h-144,285,116),Dark);
-            GUI.Label(new Rect(46,h-146,150,78),(motor.Speed*3.6f).ToString("00"),number);
-            GUI.Label(new Rect(171,h-119,115,24),"KM/H",small);
-            GUI.Label(new Rect(171,h-92,130,28),motor.Boosted?"BOOST!":motor.Frozen?"FROZEN":"CRUISE",accent);
-            Bar(new Rect(48,h-51,242,8),motor.Speed/(motor.topSpeed*motor.boostMultiplier),motor.Boosted?new Color(1,.66f,.17f):Mint);
+            if(showCourseCard)
+            {
+                Card(new Rect(28,26,300,76),Dark);
+                GUI.Label(new Rect(46,34,265,30),CourseName,title);
+                var recovery=motor.GetComponent<KartRecovery>();
+                GUI.Label(new Rect(47,70,265,23),recovery&&recovery.enabled&&recovery.route?"SUNSET CIRCUIT   /   AUTO RETURN ON":"SUNSET CIRCUIT   /   PRACTICE",tiny);
+            }
+            if(showSpeedCard&&kartView.thirdPerson)
+            {
+                Card(new Rect(28,h-144,285,116),Dark);
+                GUI.Label(new Rect(46,h-146,150,78),(motor.Speed*3.6f).ToString("00"),number);
+                GUI.Label(new Rect(171,h-119,115,24),"KM/H",small);
+                GUI.Label(new Rect(171,h-92,130,28),motor.Boosted?"BOOST!":motor.Frozen?"FROZEN":"CRUISE",accent);
+                Bar(new Rect(48,h-51,242,8),motor.Speed/(motor.topSpeed*motor.boostMultiplier),motor.Boosted?new Color(1,.66f,.17f):Mint);
             }
             var inv=motor.GetComponent<KartInventory>();
             Card(new Rect(1094,26,318,130),Dark);
-            ItemKind display=inv.Rolling?(ItemKind)(1+(int)(Time.time*14)%5):inv.Held;
-            Card(new Rect(1107,39,92,92),new Color(.14f,.23f,.31f,1));
-            var icon=inv.Icon(display);if(icon)GUI.DrawTexture(new Rect(1108,40,90,90),icon,ScaleMode.ScaleToFit,true);
-            else GUI.Label(new Rect(1128,63,55,45),"?",centered);
+            ItemSlot(inv,new Rect(1107,39,92,92));
             GUI.Label(new Rect(1211,40,184,22),"E FORWARD  /  Q BACK",tiny);
             GUI.Label(new Rect(1211,67,192,33),inv.Rolling?"ROLLING...":KartInventory.Name(inv.Held),itemTitle);
             GUI.Label(new Rect(1211,105,190,30),inv.Held==ItemKind.IceFlower?inv.Charges+" ICE SHOTS":motor.Invincible?"STAR  "+motor.StarRemaining.ToString("F1")+"s":"COLLECT A ? BOX",tiny);
@@ -120,22 +175,23 @@ namespace KartLab
                 GUI.Label(new Rect(541,h-96,350,28),motor.Drifting?"DRIFT  /  "+(motor.DriftTier==3?"ULTRA":motor.DriftTier==2?"SUPER":"MINI TURBO"):"CHARGE JUMP",itemTitle);
                 Bar(new Rect(541,h-58,358,8),motor.Charge/(motor.Drifting?2.1f:.6f),KartEffects.TierColor(motor.DriftTier));
             }
-            Card(new Rect(1016,h-110,396,82),Dark);
-            GUI.Label(new Rect(1034,h-100,365,67),"WASD DRIVE / SPACE DRIFT / H HORN\nE / Q ITEM  /  C VIEW  /  HOLD R RECOVER\nENTER START PRACTICE  /  ESC SETTINGS",tiny);
-            if(!hasDriven && Time.timeScale>0)
+            if(showControlsCard){Card(new Rect(1016,h-110,396,82),Dark);
+            GUI.Label(new Rect(1034,h-100,365,67),"WASD DRIVE / SPACE DRIFT / H HORN\nE / Q ITEM  /  C VIEW  /  HOLD R RECOVER\nENTER START PRACTICE  /  ESC SETTINGS",tiny);}
+            if(showStartHint && !hasDriven && Time.timeScale>0)
             {
                 Card(new Rect(460,h*.30f,520,132),Dark);
                 GUI.Label(new Rect(478,h*.30f+12,484,38),"TAKE THE WHEEL",centered);
                 var hint=new GUIStyle(small){alignment=TextAnchor.MiddleCenter};
                 GUI.Label(new Rect(478,h*.30f+59,484,55),"Hold W to drive. A / D steer. S brakes.\nENTER: 3–2–1 start. Apply throttle in the final second.",hint);
             }
-            if(Time.timeScale==0 || (Time.time<eventUntil && message!="DRIFT"))
+            bool startMsg=KartRaceSkills.CustomCountdownUI&&(message=="START IN 3"||message=="GO"||message=="ROCKET START"||message=="BAD START");
+            if(Time.timeScale==0 || (Time.time<eventUntil && message!="DRIFT" && !startMsg))
             {
                 Card(new Rect(470,28,500,50),Dark);
                 GUI.Label(new Rect(487,37,466,34),Time.timeScale==0?"PAUSED  /  ESC TO RESUME":message,centered);
             }
             var skills=motor.GetComponent<KartRaceSkills>();
-            if(skills&&skills.CountingDown){Card(new Rect(650,h*.28f,140,110),Dark);GUI.Label(new Rect(650,h*.28f,140,110),skills.CountdownLabel,new GUIStyle(number){alignment=TextAnchor.MiddleCenter});}
+            if(skills&&skills.CountingDown&&!KartRaceSkills.CustomCountdownUI){Card(new Rect(650,h*.28f,140,110),Dark);GUI.Label(new Rect(650,h*.28f,140,110),skills.CountdownLabel,new GUIStyle(number){alignment=TextAnchor.MiddleCenter});}
             if(Time.timeScale==0)Settings(h);
             if (motor.Resetting) {GUI.color=Color.black;GUI.DrawTexture(new Rect(0,0,1440,h),Texture2D.whiteTexture);GUI.color=Color.white;}
         }

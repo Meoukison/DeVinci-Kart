@@ -16,6 +16,11 @@ namespace KartLab
         [Range(0,.4f)] public float maxStepHeight = .32f;
         [Range(.4f,1)] public float vrSpeedScale = .72f;
         public LayerMask groundMask = 1;
+        [Header("Hors-piste")]
+        [Tooltip("Ralentit le kart dès qu'il s'éloigne de toutes les routes (TrackRoute) de la scène, quel que soit le sol.")] public bool offTrackSlowdown = true;
+        [Range(.2f,1)] public float offTrackSpeedFactor = .5f;
+        [Tooltip("Marge (m) au-delà de la demi-largeur de la route avant de commencer à ralentir, puis distance sur laquelle le ralentissement s'installe.")] public float offTrackMargin = 1.5f, offTrackBlend = 3f;
+        public bool OffTrack => offTrackFactor < .99f;
         public bool assistedDriving=true;
         [HideInInspector] public bool driveLocked;
         [Tooltip("En dessous de cette hauteur, le kart est considéré tombé et remis sur la piste.")] public float fallResetY = -6f;
@@ -47,7 +52,7 @@ namespace KartLab
         float driftDirection;
         bool previousSkill, previousUse, resetLatched;
         float boostUntil, shieldUntil, protectedUntil, jumpReady, reverseHold, resetHold, collisionUntil, resetUntil;
-        float groundFactor = 1;
+        float groundFactor = 1, offTrackFactor = 1, offTrackCheckAt;
         float starUntil, frozenUntil, yawRate, collisionFeedbackAt;
         readonly List<Vector3> wallNormals = new();
         readonly List<ContactPoint> stepContacts = new();
@@ -112,6 +117,7 @@ namespace KartLab
         {
             Body.angularVelocity = Vector3.zero;
             UpdateGroundContact();
+            UpdateOffTrack();
             if (Resetting || driveLocked) { Body.linearVelocity = Vector3.zero; yawRate=0;wallNormals.Clear();stepContacts.Clear();return; }
             var i = input ? input.Current : default;
             if(Grounded)TryClimbLowEdge(i);
@@ -180,6 +186,35 @@ namespace KartLab
             {Grounded=true;groundFactor=contactSurfaceFactor;}
             supportedByContact=false;
         }
+        /// <summary>Distance à la route la plus proche (toutes les TrackRoute actives, raccourcis compris), à hauteur comparable.</summary>
+        void UpdateOffTrack()
+        {
+            if (!offTrackSlowdown || TrackRoute.All.Count == 0 || !Grounded) { if (!offTrackSlowdown) offTrackFactor = 1; return; }
+            if (Time.time < offTrackCheckAt) return;
+            offTrackCheckAt = Time.time + .1f;
+            Vector3 pos = Body.position;
+            float best = float.PositiveInfinity;   // distance au bord de la route (négative = sur la route)
+            foreach (var route in TrackRoute.All)
+            {
+                if (!route || !route.isActiveAndEnabled || route.points == null || route.points.Length < 2) continue;
+                var tr = route.transform; var pts = route.points;
+                int segs = route.closed ? pts.Length : pts.Length - 1;
+                for (int n = 0; n < segs; n++)
+                {
+                    Vector3 a = tr.TransformPoint(pts[n]), b = tr.TransformPoint(pts[(n + 1) % pts.Length]);
+                    Vector3 ab = b - a; ab.y = 0; float len2 = ab.sqrMagnitude; if (len2 < 1e-4f) continue;
+                    Vector3 ap = pos - a; ap.y = 0;
+                    float t = Mathf.Clamp01(Vector3.Dot(ap, ab) / len2);
+                    Vector3 c = Vector3.Lerp(a, b, t);
+                    if (Mathf.Abs(pos.y - c.y) > 4f) continue;   // viaduc au-dessus / route en dessous
+                    float dx = pos.x - c.x, dz = pos.z - c.z;
+                    float edge = Mathf.Sqrt(dx * dx + dz * dz) - route.roadHalfWidth;
+                    if (edge < best) best = edge;
+                }
+            }
+            if (float.IsPositiveInfinity(best)) { offTrackFactor = 1; return; }   // aucune route à cette hauteur (saut, zone non tracée)
+            offTrackFactor = Mathf.Lerp(1, offTrackSpeedFactor, Mathf.InverseLerp(offTrackMargin, offTrackMargin + offTrackBlend, best));
+        }
         void TryClimbLowEdge(DriveInput drive)
         {
             if(!chassis || maxStepHeight<=0 || Body.linearVelocity.y>.5f)return;
@@ -208,7 +243,7 @@ namespace KartLab
         public float SpeedFactor()
         {
             if(Invincible)return 1;
-            float factor = groundFactor;
+            float factor = Mathf.Min(groundFactor, offTrackFactor);
             foreach (float surface in surfaces.Values) factor = Mathf.Min(factor, surface);
             for (int n = slows.Count - 1; n >= 0; n--)
                 if (Time.time >= slows[n].y) slows.RemoveAt(n); else factor = Mathf.Min(factor, slows[n].x);

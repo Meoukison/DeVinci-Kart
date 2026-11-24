@@ -206,9 +206,9 @@ namespace KartLab
             input.externalInput=default;motor.SetCheckpoint(new Vector3(150,.05f,25),Quaternion.identity);motor.BeginReset();yield return new WaitForSeconds(.65f);
             skills.BeginCountdown();input.externalInput=new DriveInput{throttle=1};yield return new WaitForSeconds(1);
             Check("Countdown holds vehicle at start",motor.Speed<.05f&&skills.CountingDown);
-            yield return new WaitForSeconds(2.15f);Check("Early throttle gives no rocket boost",!skills.CountingDown&&!motor.driveLocked&&skills.RocketStarts==0&&!motor.Boosted);
+            yield return new WaitForSeconds(2.15f);Check("Early throttle gives no rocket boost",!skills.CountingDown&&skills.RocketStarts==0&&!motor.Boosted);yield return new WaitForSeconds(skills.stallDuration);
             input.externalInput=default;motor.BeginReset();yield return new WaitForSeconds(.65f);
-            skills.BeginCountdown();yield return new WaitForSeconds(2.4f);input.externalInput=new DriveInput{throttle=1};yield return new WaitForSeconds(.75f);
+            skills.BeginCountdown();yield return new WaitForSeconds(1.2f);input.externalInput=new DriveInput{throttle=1};yield return new WaitForSeconds(1.95f);
             Check("Timed throttle earns rocket start",skills.RocketStarts==1&&motor.Boosted&&!motor.driveLocked);
             skills.BeginCountdown();skills.enabled=false;Check("Disabled start controller releases drive lock",!motor.driveLocked);skills.enabled=true;
             input.externalInput=default;motor.BeginReset();yield return new WaitForSeconds(.65f);

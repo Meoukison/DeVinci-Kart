@@ -134,6 +134,7 @@ namespace DeVinciKart.EditorTools
                     if (km != null) km.fallResetY = -25f;   // le parc est à -7 m sous la ville
                 }
                 BuildCSLapSystem(path, finishIdx, root, kart);
+                BuildMinimap(root, path, null, Vector3.right, "CitySlicker", true, finishIdx);
 
                 // crédits CC-BY (obligatoires)
                 var credit = Text3D(root, "Circuit : " + CSCredit, new Vector3(14f, 6f, 40f), Quaternion.identity, 0.35f, Color.white);

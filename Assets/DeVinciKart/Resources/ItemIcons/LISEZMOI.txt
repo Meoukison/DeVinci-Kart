@@ -1,0 +1,4 @@
+Mets ici tes propres images d objets (PNG avec transparence) :
+  Mushroom.png  Star.png  GreenShell.png  Banana.png  IceFlower.png
+Elles remplacent automatiquement les icones de la roulette.
+Dans l Inspector de chaque image : Texture Type = Default, Alpha Is Transparency coche.

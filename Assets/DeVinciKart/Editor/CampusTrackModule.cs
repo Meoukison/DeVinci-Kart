@@ -402,12 +402,14 @@ namespace DeVinciKart.EditorTools
             else Warnings.Add("Variante du pont : bord du saut introuvable (le tremplin n'a pas été posé).");
             PlaceItemRow(a, a.Nearest(Mod(-76.3f, 6f, 34.5f)), parent, new[] { -3f, 0f, 3f });
             AltRoute(a, "TrackRoute_Variante_PontArc", 7f, root);
+            minimapAlts.Add(a);
             TestRoute(main, a, "TestRoute_Variante_PontArc", root);
 
             // --- B : tunnel sous la colline
             var b = BuildModuleAlt(ModAltB);
             PlaceItemRow(b, b.Nearest(Mod(-108f, -7.3f, -186.5f)), parent, new[] { -2.5f, 0f, 2.5f });
             AltRoute(b, "TrackRoute_Raccourci_Tunnel", 5f, root);
+            minimapAlts.Add(b);
             TestRoute(main, b, "TestRoute_Raccourci_Tunnel", root);
             Debug.Log($"[DeVinci Kart] Variantes du quartier : pont en arc {a.length:0} m (saut au point {edge}), tunnel {b.length:0} m.");
         }
@@ -424,10 +426,33 @@ namespace DeVinciKart.EditorTools
             {
                 int j = main.Nearest(c.p[i]);
                 Vector3 m = main.p[j]; m.y = 0f; Vector3 q = c.p[i]; q.y = 0f;
-                if ((m - q).magnitude < RoadHalf) c.p[i] = new Vector3(c.p[i].x, main.p[j].y, c.p[i].z);
+                float d = (m - q).magnitude;
+                if (d < RoadHalf) { c.p[i] = new Vector3(c.p[i].x, main.p[j].y, c.p[i].z); continue; }
+                // rampe : la terre rejoint en douceur la hauteur du vibreur (la route principale peut être déjà en montée)
+                float w = 1f - Mathf.SmoothStep(0f, 1f, (d - RoadHalf - CurbW) / DirtRampLen);
+                c.p[i] = new Vector3(c.p[i].x, Mathf.Lerp(c.p[i].y, main.p[j].y + DirtCurbTop - DirtLift, w), c.p[i].z);
             }
             RecomputeFrames(c);
             return c;
+        }
+
+        const float DirtLift = 0.035f, DirtCurbTop = 0.06f + 0.08f, DirtRampLen = 14f, DirtBankSlope = 1.5f;
+
+        /// <summary>Sommet de la piste en terre : collé au bord extérieur du vibreur s'il déborde sur la route, sinon rampe vers sa hauteur.</summary>
+        static Vector3 DirtVertex(PathData main, Vector3 v, float baseY, out bool onEdge)
+        {
+            int j = main.Nearest(v);
+            Vector3 m = main.p[j], f = v - m; f.y = 0f;
+            float d = f.magnitude, o1 = RoadHalf + CurbW, top = m.y + DirtCurbTop;
+            onEdge = d < o1;
+            if (onEdge)
+            {
+                Vector3 e = m + (d > 0.001f ? f / d : main.right[j]) * o1;
+                return new Vector3(e.x, top, e.z);
+            }
+            float w = 1f - Mathf.SmoothStep(0f, 1f, (d - o1) / DirtRampLen);
+            v.y = Mathf.Lerp(baseY + DirtLift, top, w);
+            return v;
         }
 
         static bool InBarrierGap(Vector3 barrierPoint)
@@ -455,14 +480,33 @@ namespace DeVinciKart.EditorTools
             int first = 0, last = c.Count - 1;
             while (first < c.Count - 2 && DistMain(first) < RoadHalf + CurbW) first++;
             while (last > first + 1 && DistMain(last) < RoadHalf + CurbW) last--;
-            for (int i = first; i < last; i++)
+            // la terre va jusqu'au bord extérieur du vibreur, à sa hauteur : plus de marche ni de bande d'herbe à la jonction
+            var bank = new MB();
+            for (int i = 0; i < c.Count - 1; i++)
             {
-                Vector3 l0 = c.p[i] - c.right[i] * hw + Vector3.up * 0.035f, r0 = c.p[i] + c.right[i] * hw + Vector3.up * 0.035f;
-                Vector3 l1 = c.p[i + 1] - c.right[i + 1] * hw + Vector3.up * 0.035f, r1 = c.p[i + 1] + c.right[i + 1] * hw + Vector3.up * 0.035f;
+                Vector3 l0 = DirtVertex(main, c.p[i] - c.right[i] * hw, c.p[i].y, out bool el0);
+                Vector3 r0 = DirtVertex(main, c.p[i] + c.right[i] * hw, c.p[i].y, out bool er0);
+                Vector3 l1 = DirtVertex(main, c.p[i + 1] - c.right[i + 1] * hw, c.p[i + 1].y, out bool el1);
+                Vector3 r1 = DirtVertex(main, c.p[i + 1] + c.right[i + 1] * hw, c.p[i + 1].y, out bool er1);
+                if (el0 && er0 && el1 && er1) continue;   // entièrement sur la route principale
                 mb.Quad(l0, l1, r1, r0, new Vector2(0, c.dist[i] / 6f), new Vector2(0, c.dist[i + 1] / 6f), new Vector2(1.4f, c.dist[i + 1] / 6f), new Vector2(1.4f, c.dist[i] / 6f), Vector3.up);
+                // flancs en terre quand la piste est au-dessus du sol (rampe de la jonction)
+                foreach (int side in new[] { -1, 1 })
+                {
+                    Vector3 a0 = side < 0 ? l0 : r0, a1 = side < 0 ? l1 : r1;
+                    bool e0 = side < 0 ? el0 : er0, e1 = side < 0 ? el1 : er1;
+                    if (e0 || e1 || (a0.y < 0.08f && a1.y < 0.08f)) continue;
+                    Vector3 out0 = Flat(c.right[i]) * side, out1 = Flat(c.right[i + 1]) * side;
+                    Vector3 g0 = a0 + out0 * (Mathf.Max(0f, a0.y) * DirtBankSlope); g0.y = -0.03f;
+                    Vector3 g1 = a1 + out1 * (Mathf.Max(0f, a1.y) * DirtBankSlope); g1.y = -0.03f;
+                    if (side < 0) bank.Quad(a1, a0, g0, g1, new Vector2(a1.x, a1.z) / 6f, new Vector2(a0.x, a0.z) / 6f, new Vector2(g0.x, g0.z) / 6f, new Vector2(g1.x, g1.z) / 6f, out0 + Vector3.up);
+                    else bank.Quad(a0, a1, g1, g0, new Vector2(a0.x, a0.z) / 6f, new Vector2(a1.x, a1.z) / 6f, new Vector2(g1.x, g1.z) / 6f, new Vector2(g0.x, g0.z) / 6f, out0 + Vector3.up);
+                }
             }
             var go = MeshGO("Piste_Terre", parent, mb, "Dirt", true);
             if (go != null) go.AddComponent<GroundSurface>().speedFactor = 0.85f;
+            var bankGO = MeshGO("Piste_Terre_Flancs", parent, bank, "Dirt", true);
+            if (bankGO != null) bankGO.AddComponent<GroundSurface>().speedFactor = 0.6f;
             BuildKickerAt(c, parent, Mathf.RoundToInt(c.Count * 0.45f), "Tremplin_Terre", 7, 1.3f, 3.8f);
             // panneau « RACCOURCI » à l'entrée
             {
@@ -478,8 +522,13 @@ namespace DeVinciKart.EditorTools
             // balises bois le long de la piste en terre
             for (int i = first + 8; i < last - 8; i += 6)
                 foreach (float side in new[] { -1f, 1f })
-                    Prim(PrimitiveType.Cylinder, "Balise", parent, c.p[i] + c.right[i] * side * (hw + 0.6f) + Vector3.up * 0.5f, new Vector3(0.25f, 0.5f, 0.25f), (i / 6) % 2 == 0 ? "Barrier" : "Bark");
+                {
+                    // balise posée au sol (la piste peut être en rampe) et dépassant de 1 m au-dessus de la terre
+                    float topY = c.p[i].y + 1f; Vector3 bp = c.p[i] + c.right[i] * side * (hw + 0.6f); bp.y = topY * 0.5f;
+                    Prim(PrimitiveType.Cylinder, "Balise", parent, bp, new Vector3(0.25f, topY * 0.5f, 0.25f), (i / 6) % 2 == 0 ? "Barrier" : "Bark");
+                }
             AltRoute(c, "TrackRoute_Raccourci_Terre", 5f, root);
+            minimapAlts.Add(c);
             TestRoute(main, c, "TestRoute_Raccourci_Terre", root);
         }
 

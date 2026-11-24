@@ -172,6 +172,7 @@ namespace DeVinciKart.EditorTools
                 ComputeModuleFrame();
                 moduleActive = true;
                 itemSerial = 0;
+                minimapAlts.Clear();
                 altCPath = null;
 
                 EditorUtility.DisplayProgressBar("DeVinci Kart", "Textures et matériaux…", 0.1f);
@@ -232,6 +233,7 @@ namespace DeVinciKart.EditorTools
                 BuildDirtShortcut(path, root);
                 BuildViaduct(path, root);
                 BuildObstaclesAndRoadProps(path, root);
+                BuildMinimap(root, path, minimapAlts, AxisEast, "Campus", false, 0);
 
                 EditorUtility.DisplayProgressBar("DeVinci Kart", "Arbres, lampadaires, tours…", 0.85f);
                 BuildDecor(path, root);
@@ -550,6 +552,26 @@ namespace DeVinciKart.EditorTools
                 }
             }
 
+            // Terrasses : une portion surélevée est soit entièrement en talus, soit entièrement en viaduc.
+            // (avant, le talus s'arrêtait net là où le tablier commençait : trou visible et talus « coupé » en biseau)
+            var viaductRun = new bool[n];
+            for (int r0 = 0; r0 < n; )
+            {
+                if (path.p[r0].y <= 0.1f) { r0++; continue; }
+                int r1 = r0;
+                while (r1 + 1 < n && path.p[r1 + 1].y > 0.1f) r1++;
+                bool needDeck = false;
+                for (int i = r0; i <= r1 && !needDeck; i++)
+                {
+                    float along = Vector3.Dot(new Vector3(path.p[i].x, 0f, path.p[i].z), AxisEast);
+                    if (along >= -262f || ModuleBlocked(path.p[i], 4f)) continue;
+                    needDeck = lowerDist[i] <= o2 + 1.6f * path.p[i].y + 10f;
+                }
+                for (int i = Mathf.Max(0, r0 - 1); i <= r1; i++) viaductRun[i] = needDeck;
+                r0 = r1 + 1;
+            }
+
+            var barGapPrev = new bool[2];
             for (int i = 0; i < n - 1; i++)
             {
                 Zone z0 = ZoneAt(path.p[i]), z1 = ZoneAt(path.p[i + 1]);
@@ -568,15 +590,29 @@ namespace DeVinciKart.EditorTools
 
                     curb.Quad(P(i, RoadHalf, 0f), P(i + 1, RoadHalf, 0f), P(i + 1, o1, lip), P(i, o1, lip),
                         new Vector2(0, u0), new Vector2(0, u1), new Vector2(1, u1), new Vector2(1, u0), Vector3.up);
-                    if (InBarrierGap(P(i, o1, 0f)) || InBarrierGap(P(i + 1, o1, 0f))) continue;   // ouverture vers un raccourci
-
                     float yb = -0.35f;
-                    bar.Quad(P(i, o1, yb), P(i + 1, o1, yb), P(i + 1, o1, hgt), P(i, o1, hgt),
-                        new Vector2(u0, 0), new Vector2(u1, 0), new Vector2(u1, 1), new Vector2(u0, 1), -outward);
-                    bar.Quad(P(i, o1, hgt), P(i + 1, o1, hgt), P(i + 1, o2, hgt), P(i, o2, hgt),
-                        new Vector2(u0, 0.95f), new Vector2(u1, 0.95f), new Vector2(u1, 1), new Vector2(u0, 1), Vector3.up);
-                    bar.Quad(P(i, o2, yb), P(i + 1, o2, yb), P(i + 1, o2, hgt), P(i, o2, hgt),
-                        new Vector2(u0, 0), new Vector2(u1, 0), new Vector2(u1, 1), new Vector2(u0, 1), outward);
+                    int si = side < 0 ? 0 : 1;
+                    bool gap = InBarrierGap(P(i, o1, 0f)) || InBarrierGap(P(i + 1, o1, 0f));   // ouverture vers un raccourci
+                    if (gap != barGapPrev[si] && i > 0)
+                    {
+                        // bout de barrière fermé (sinon on voit l'intérieur creux au bord de l'ouverture)
+                        Vector3 capN = path.fwd[i] * (gap ? 1f : -1f);
+                        Vector3 ci = P(i, o1, yb), co = P(i, o2, yb), cit = P(i, o1, hgt), cot = P(i, o2, hgt);
+                        if ((side > 0) == gap) bar.Quad(ci, cit, cot, co, new Vector2(0, 0), new Vector2(0, 1), new Vector2(0.1f, 1), new Vector2(0.1f, 0), capN);
+                        else bar.Quad(co, cot, cit, ci, new Vector2(0, 0), new Vector2(0, 1), new Vector2(0.1f, 1), new Vector2(0.1f, 0), capN);
+                    }
+                    barGapPrev[si] = gap;
+                    if (!gap)
+                    {
+                        bar.Quad(P(i, o1, yb), P(i + 1, o1, yb), P(i + 1, o1, hgt), P(i, o1, hgt),
+                            new Vector2(u0, 0), new Vector2(u1, 0), new Vector2(u1, 1), new Vector2(u0, 1), -outward);
+                        bar.Quad(P(i, o1, hgt), P(i + 1, o1, hgt), P(i + 1, o2, hgt), P(i, o2, hgt),
+                            new Vector2(u0, 0.95f), new Vector2(u1, 0.95f), new Vector2(u1, 1), new Vector2(u0, 1), Vector3.up);
+                        bar.Quad(P(i, o2, yb), P(i + 1, o2, yb), P(i + 1, o2, hgt), P(i, o2, hgt),
+                            new Vector2(u0, 0), new Vector2(u1, 0), new Vector2(u1, 1), new Vector2(u0, 1), outward);
+                    }
+                    // dans une ouverture, le talus / mur part directement du bord du vibreur (pas de fente sous la route)
+                    float ob = gap ? o1 : o2, yt = gap ? lip : yb;
 
                     // sous la route surélevée : tablier de pont au-dessus d'une autre route, talus en herbe dans les Terrasses, sinon mur
                     if (path.p[i].y > 0.1f || path.p[i + 1].y > 0.1f)
@@ -585,13 +621,13 @@ namespace DeVinciKart.EditorTools
                         float along = Vector3.Dot(new Vector3(path.p[i].x, 0f, path.p[i].z), AxisEast);
                         float ld = Mathf.Min(lowerDist[i], lowerDist[i + 1]);
                         bool terrasses = along < -262f && !ModuleBlocked(path.p[i], 4f);
-                        if (ld < 16f || (terrasses && ld <= o2 + 1.6f * h + 10f))
+                        if (ld < 16f || (terrasses && viaductRun[i]))
                         {
                             Vector3 a0 = P(i, o2, -1.25f), a1 = P(i + 1, o2, -1.25f), b0 = P(i, 0f, -1.25f), b1 = P(i + 1, 0f, -1.25f);
                             deck.Quad(a0, a1, P(i + 1, o2, yb), P(i, o2, yb), new Vector2(u0, 0), new Vector2(u1, 0), new Vector2(u1, 0.3f), new Vector2(u0, 0.3f), outward);
                             deck.Quad(b0, b1, a1, a0, new Vector2(u0, 0), new Vector2(u1, 0), new Vector2(u1, 1), new Vector2(u0, 1), Vector3.down);
                             // piles sous le tablier, hors de la route du dessous
-                            if (i % 9 == 0)
+                            if (i % 9 == 0 && path.p[i].y + RoadLift - 1.25f > 0.4f)
                             {
                                 Vector3 pp = path.p[i] + path.right[i] * (side * (o2 - 0.9f)); pp.y = 0f;
                                 float free = float.MaxValue;
@@ -607,17 +643,17 @@ namespace DeVinciKart.EditorTools
                         }
                         else if (terrasses)
                         {
-                            float w0 = o2 + 1.6f * Mathf.Max(0f, path.p[i].y + yb), w1 = o2 + 1.6f * Mathf.Max(0f, path.p[i + 1].y + yb);
+                            float w0 = ob + 1.6f * Mathf.Max(0f, path.p[i].y + yt), w1 = ob + 1.6f * Mathf.Max(0f, path.p[i + 1].y + yt);
                             Vector3 g0 = path.p[i] + path.right[i] * (side * w0); g0.y = -0.05f;
                             Vector3 g1 = path.p[i + 1] + path.right[i + 1] * (side * w1); g1.y = -0.05f;
-                            Vector3 c0 = P(i, o2, yb), c1 = P(i + 1, o2, yb);
-                            bank.Quad(c0, c1, g1, g0, new Vector2(c0.x, c0.z) / 6f, new Vector2(c1.x, c1.z) / 6f, new Vector2(g1.x, g1.z) / 6f, new Vector2(g0.x, g0.z) / 6f, outward + Vector3.up);
+                            Vector3 c0 = P(i, ob, yt), c1 = P(i + 1, ob, yt);
+                            bank.Quad(c0, c1, g1, g0, new Vector2(c0.x, c0.z) / 8f, new Vector2(c1.x, c1.z) / 8f, new Vector2(g1.x, g1.z) / 8f, new Vector2(g0.x, g0.z) / 8f, outward + Vector3.up);   // même échelle de texture que le sol
                         }
                         else
                         {
-                            Vector3 a = path.p[i] + path.right[i] * (side * o2); a.y = -0.3f;
-                            Vector3 b = path.p[i + 1] + path.right[i + 1] * (side * o2); b.y = -0.3f;
-                            Vector3 c = P(i + 1, o2, yb), d = P(i, o2, yb);
+                            Vector3 a = path.p[i] + path.right[i] * (side * ob); a.y = -0.3f;
+                            Vector3 b = path.p[i + 1] + path.right[i + 1] * (side * ob); b.y = -0.3f;
+                            Vector3 c = P(i + 1, ob, yt), d = P(i, ob, yt);
                             float ua = path.dist[i] / 4f, ub = path.dist[i + 1] / 4f;
                             skirt.Quad(a, b, c, d, new Vector2(ua, a.y / 4f), new Vector2(ub, b.y / 4f),
                                 new Vector2(ub, c.y / 4f), new Vector2(ua, d.y / 4f), outward);
@@ -980,8 +1016,20 @@ namespace DeVinciKart.EditorTools
             // Lakitu au-dessus de la grille de départ
             var bobHolder = new GameObject("Lakitu_Flottement").transform;
             bobHolder.SetParent(parent, false);
-            var lakitu = PlaceFit("Lakitu", bobHolder, Hall(DoorLx + 4.5f, 10.5f, 5.2f), hallYaw + 180f, 2.2f);
+            var lakitu = PlaceFit("Lakitu", bobHolder, Hall(DoorLx - 1.5f, 14.5f, 2.3f), hallYaw + 180f, 2.4f);
             lakitu.name = "Lakitu";
+            // feu de départ : les 3 lampes ajoutées dans Blender doivent regarder la grille de départ
+            var lamps = new Renderer[3];
+            foreach (var r in lakitu.GetComponentsInChildren<Renderer>(true))
+                for (int k = 0; k < 3; k++) if (r.name.StartsWith("Lampe_" + (k + 1))) lamps[k] = r;
+            if (lamps[1] != null)
+            {
+                Vector3 grid = Hall(DoorLx - 2.5f, 8f, 1.2f);   // pilote en pole position
+                Vector3 face = Flat(lamps[1].transform.up), want = Flat(grid - lamps[1].transform.position);
+                bobHolder.RotateAround(lakitu.transform.position, Vector3.up, Vector3.SignedAngle(face, want, Vector3.up));
+                lakitu.AddComponent<LakituStartLights>().lamps = lamps;
+            }
+            else Warnings.Add("Lakitu : lampes du feu introuvables (Lampe_1..3) — relancer Backup_Modeles/lakitu_feu.py dans Blender.");
             var sp = bobHolder.gameObject.AddComponent<Spinner>();
             sp.degreesPerSecond = Vector3.zero;
             sp.bobAmplitude = 0.25f;
@@ -1356,11 +1404,17 @@ namespace DeVinciKart.EditorTools
             var sun = sunGO ? sunGO.GetComponent<Light>() : null;
             if (sun != null)
             {
-                sun.transform.rotation = Quaternion.Euler(48f, -35f, 0f);
-                sun.intensity = 1.25f;
+                sun.transform.rotation = Quaternion.Euler(42f, -35f, 0f);   // soleil un peu plus bas : ombres plus longues et plus lisibles
+                sun.intensity = 1.3f;
                 sun.shadows = LightShadows.Soft;
-                sun.color = new Color(1f, 0.96f, 0.9f);
+                sun.shadowStrength = 0.85f;
+                sun.color = new Color(1f, 0.95f, 0.87f);
             }
+            // lumière ambiante en dégradé : dessous des ponts et faces à l'ombre moins « plats », sans les déboucher
+            RenderSettings.ambientMode = AmbientMode.Trilight;
+            RenderSettings.ambientSkyColor = new Color(0.62f, 0.72f, 0.86f);
+            RenderSettings.ambientEquatorColor = new Color(0.5f, 0.54f, 0.52f);
+            RenderSettings.ambientGroundColor = new Color(0.26f, 0.27f, 0.22f);
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Linear;
             RenderSettings.fogStartDistance = 600f;

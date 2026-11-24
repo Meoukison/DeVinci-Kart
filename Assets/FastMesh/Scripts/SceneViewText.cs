@@ -1,5 +1,7 @@
 using UnityEngine;
+#if UNITY_EDITOR
 using UnityEditor;
+#endif
 
 namespace FastMesh_Example
 {
@@ -11,6 +13,7 @@ namespace FastMesh_Example
         Color backgroundColor = Color.white;
         Color textColor = Color.black; 
     
+#if UNITY_EDITOR   // outil de la vue Scène uniquement : exclu du jeu exporté
         private void OnEnable()
         {
             SceneView.duringSceneGui += OnSceneGUI;
@@ -52,6 +55,7 @@ namespace FastMesh_Example
             // GUILayout.EndArea();
             Handles.EndGUI();
         }
+#endif
     }
 }
 

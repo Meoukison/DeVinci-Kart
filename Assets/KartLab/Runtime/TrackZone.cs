@@ -10,11 +10,24 @@ namespace KartLab
         public ItemKind fixedItem;
         public Transform visual, spawn;
         public float respawnSeconds = 5;
+        [Tooltip("Cache l'objet et son nom à l'intérieur de la boîte (seuls les « ? » restent visibles).")]
+        public bool hideItemPreview = true;
         float availableAt;
         Vector3 visualHome;
         bool visualInitialized;
         readonly Dictionary<KartMotor, float> lastBoost = new();
         readonly HashSet<KartMotor> occupants = new();
+        void Start()
+        {
+            if (kind != ZoneKind.ItemBox || !hideItemPreview) return;
+            foreach (var t in GetComponentsInChildren<Transform>(true))
+            {
+                if (t == transform || t == visual) continue;
+                bool preview = t.name.EndsWith(" art");
+                for (int k = 1; k <= 5 && !preview; k++) preview = t.name == KartInventory.Name((ItemKind)k);
+                if (preview) t.gameObject.SetActive(false);
+            }
+        }
         void Update()
         {
             if (kind != ZoneKind.ItemBox || !visual) return;

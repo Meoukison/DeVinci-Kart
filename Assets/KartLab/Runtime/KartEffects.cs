@@ -67,9 +67,9 @@ namespace KartLab
                 var main=exhaust[n].main;main.startColor=motor.Invincible?Color.HSVToRGB(Mathf.Repeat(Time.time*.7f,1),.8f,1):new Color(1,.38f,.035f);
                 var se=sparks[n].emission;se.rateOverTime=motor.Drifting&&motor.Grounded?45:0;var sm=sparks[n].main;sm.startColor=TierColor(motor.DriftTier);
             }
-            for(int n=0;n<orbitStars.Length;n++)
+            if(orbitStars!=null)for(int n=0;n<orbitStars.Length;n++)
             {
-                var star=orbitStars[n];star.gameObject.SetActive(motor.Invincible);
+                var star=orbitStars[n];if(!star)continue;star.gameObject.SetActive(motor.Invincible);
                 float phase=Time.time*3+n*Mathf.PI*2/orbitStars.Length;
                 star.localPosition=new Vector3(Mathf.Cos(phase)*1.15f,.8f+Mathf.Sin(phase*2)*.18f,Mathf.Sin(phase)*1.15f);star.Rotate(0,Time.deltaTime*180,0);
             }
@@ -77,7 +77,7 @@ namespace KartLab
             if(motor.Invincible)propertyBlock.SetColor("_EmissionColor",Color.HSVToRGB(Mathf.Repeat(Time.time*.5f,1),.8f,.5f));
             else if(motor.Frozen)propertyBlock.SetColor("_EmissionColor",new Color(0,.3f,.5f));
             else propertyBlock.SetColor("_EmissionColor",Color.black);
-            foreach(var renderer in bodyRenderers)renderer.SetPropertyBlock(propertyBlock);
+            if(bodyRenderers!=null)foreach(var renderer in bodyRenderers)if(renderer)renderer.SetPropertyBlock(propertyBlock);
         }
         void OnDestroy(){if(motor)motor.Feedback-=React;}
     }
